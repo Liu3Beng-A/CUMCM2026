@@ -1,0 +1,5 @@
+"""src 包初始化"""
+from .utils import (
+    ROOT, DATA_DIR, RAW_DIR, PROCESSED_DIR,
+    RESULTS_DIR, FIGURES_DIR, TABLES_DIR, EXCEL_DIR, PAPER_FIG_DIR
+)

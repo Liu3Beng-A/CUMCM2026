@@ -1,0 +1,571 @@
+"""用 python-docx 生成论文框架
+运行：python src/build_paper.py
+输出：paper/SEM广告投放策略优化_论文框架.docx
+"""
+import os
+import sys
+sys.stdout.reconfigure(encoding='utf-8')
+# 把项目根目录加入path
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from docx import Document
+from docx.shared import Pt, Cm, RGBColor
+from docx.enum.text import WD_ALIGN_PARAGRAPH
+from docx.enum.table import WD_TABLE_ALIGNMENT, WD_ALIGN_VERTICAL
+from docx.oxml.ns import qn
+
+from src.utils import ensure_dir
+
+PAPER_DIR = ensure_dir(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'paper'))
+
+
+# ===== 字体辅助 =====
+def set_cell_font(cell, text, bold=False, size=10.5, align=WD_ALIGN_PARAGRAPH.LEFT):
+    cell.text = ''
+    p = cell.paragraphs[0]
+    p.alignment = align
+    run = p.add_run(text)
+    run.font.size = Pt(size)
+    run.font.name = '宋体'
+    run._element.rPr.rFonts.set(qn('w:eastAsia'), '宋体')
+    run.bold = bold
+    cell.vertical_alignment = WD_ALIGN_VERTICAL.CENTER
+
+
+def add_para(doc, text, style=None, size=10.5, bold=False, align=WD_ALIGN_PARAGRAPH.LEFT, first_line_indent=True):
+    p = doc.add_paragraph(style=style) if style else doc.add_paragraph()
+    p.alignment = align
+    run = p.add_run(text)
+    run.font.size = Pt(size)
+    run.font.name = 'Times New Roman'
+    run._element.rPr.rFonts.set(qn('w:eastAsia'), '宋体')
+    run.bold = bold
+    if first_line_indent:
+        p.paragraph_format.first_line_indent = Cm(0.74)  # 2字符
+    return p
+
+
+def add_heading(doc, text, level=1):
+    """自定义标题"""
+    p = doc.add_paragraph()
+    p.alignment = WD_ALIGN_PARAGRAPH.LEFT
+    run = p.add_run(text)
+    run.font.size = Pt({1: 16, 2: 14, 3: 12}.get(level, 12))
+    run.font.name = '黑体'
+    run._element.rPr.rFonts.set(qn('w:eastAsia'), '黑体')
+    run.bold = True
+    p.paragraph_format.space_before = Pt(12)
+    p.paragraph_format.space_after = Pt(6)
+    return p
+
+
+def add_section_table(doc, headers, rows, col_widths_cm=None):
+    """插入表格"""
+    table = doc.add_table(rows=1 + len(rows), cols=len(headers))
+    table.alignment = WD_TABLE_ALIGNMENT.CENTER
+    table.style = 'Table Grid'
+    # 表头
+    for i, h in enumerate(headers):
+        set_cell_font(table.cell(0, i), h, bold=True, align=WD_ALIGN_PARAGRAPH.CENTER)
+    # 内容
+    for r_idx, row in enumerate(rows):
+        for c_idx, val in enumerate(row):
+            set_cell_font(table.cell(r_idx + 1, c_idx), str(val), align=WD_ALIGN_PARAGRAPH.LEFT if c_idx > 0 else WD_ALIGN_PARAGRAPH.CENTER)
+    # 列宽
+    if col_widths_cm:
+        for r in table.rows:
+            for i, w in enumerate(col_widths_cm):
+                r.cells[i].width = Cm(w)
+    return table
+
+
+def add_image_placeholder(doc, caption, fig_id):
+    """图片占位"""
+    p = doc.add_paragraph()
+    p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    run = p.add_run(f'[图片占位] {fig_id}：{caption}')
+    run.font.size = Pt(10)
+    run.italic = True
+    run.font.color.rgb = RGBColor(0x80, 0x80, 0x80)
+    return p
+
+
+# ===== 构建论文 =====
+def build_paper():
+    doc = Document()
+
+    # 默认样式
+    style = doc.styles['Normal']
+    style.font.name = 'Times New Roman'
+    style.element.rPr.rFonts.set(qn('w:eastAsia'), '宋体')
+    style.font.size = Pt(10.5)
+
+    # 页面设置 A4
+    for section in doc.sections:
+        section.page_height = Cm(29.7)
+        section.page_width = Cm(21.0)
+        section.left_margin = Cm(2.54)
+        section.right_margin = Cm(2.54)
+        section.top_margin = Cm(2.54)
+        section.bottom_margin = Cm(2.54)
+
+    # ============= 封面 =============
+    p = doc.add_paragraph()
+    p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    run = p.add_run('\n\n\n\n\n\n')
+    p = doc.add_paragraph()
+    p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    run = p.add_run('2026 年高教社杯全国大学生数学建模竞赛')
+    run.font.size = Pt(18); run.bold = True
+    run.font.name = '黑体'
+    run._element.rPr.rFonts.set(qn('w:eastAsia'), '黑体')
+
+    p = doc.add_paragraph()
+    p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    run = p.add_run('\n\n')
+
+    p = doc.add_paragraph()
+    p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    run = p.add_run('SEM 广告投放策略优化')
+    run.font.size = Pt(28); run.bold = True
+    run.font.name = '黑体'
+    run._element.rPr.rFonts.set(qn('w:eastAsia'), '黑体')
+
+    p = doc.add_paragraph()
+    p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    run = p.add_run('\n\n（E 题）\n\n\n\n')
+    run.font.size = Pt(16)
+
+    # 队伍信息
+    for label, value in [
+        ('队伍编号：', '【待填】'),
+        ('队伍成员：', '【待填】'),
+        ('指导教师：', '【待填】'),
+        ('所在学校：', '【待填】'),
+        ('提交日期：', '【待填】'),
+    ]:
+        p = doc.add_paragraph()
+        p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        run = p.add_run(f'{label}{value}')
+        run.font.size = Pt(14)
+
+    doc.add_page_break()
+
+    # ============= 摘要 =============
+    add_heading(doc, '摘 要', level=1)
+    add_para(doc,
+        '本文针对某互联网公司的搜索引擎营销（SEM）广告投放策略优化问题，基于2025年全年的'
+        '投放数据，从合理性分析、关键词分类、投放策略优化和不确定性优化四个层面展开研究。'
+        '全文主要工作如下：'
+    )
+    add_para(doc,
+        '（1）针对问题一，从设计质量、关键词管理、出价策略、时间规律和假日效应五个维度，'
+        '对2025年的SEM投放数据进行多维度统计分析，识别出现有策略的优势与不足；'
+    )
+    add_para(doc,
+        '（2）针对问题二，定义"成本-效益"二维分类体系，采用K-means聚类与四分位数阈值法，'
+        '将2227个关键词划分为黄金词、重点词、潜力词、问题词、无效词五大类；'
+    )
+    add_para(doc,
+        '（3）针对问题三，以最大化预期注册量为目标，建立了基于预算约束和单元关联的'
+        '多目标整数规划模型，给出2025年2月1-8日与8月1-8日的每日最优投放策略；'
+    )
+    add_para(doc,
+        '（4）针对问题四，引入蒙特卡洛模拟和鲁棒优化方法，估计各关键词指标的概率分布，'
+        '给出2026年9月11-17日的最优投放策略及关键指标的期望范围。'
+    )
+    add_para(doc,
+        '研究表明，本文提出的优化模型相比2025年实际投放可降低约【X】%的投入成本，'
+        '提升约【Y】%的注册转化效果，验证了模型的有效性与实用性。',
+    )
+
+    # 关键词
+    p = doc.add_paragraph()
+    run = p.add_run('关键词：')
+    run.bold = True; run.font.size = Pt(10.5)
+    run = p.add_run('SEM广告；关键词分类；整数规划；蒙特卡洛模拟；鲁棒优化')
+    run.font.size = Pt(10.5)
+
+    doc.add_page_break()
+
+    # ============= 目录 =============
+    add_heading(doc, '目 录', level=1)
+    toc_items = [
+        '1  问题重述',
+        '2  问题分析',
+        '3  模型假设',
+        '4  符号说明',
+        '5  模型建立与求解',
+        '   5.1  问题一：投放策略合理性分析',
+        '   5.2  问题二：关键词五分类',
+        '   5.3  问题三：基于预算约束的最优投放模型',
+        '   5.4  问题四：不确定性优化模型',
+        '6  模型评价与推广',
+        '7  参考文献',
+        '8  附录',
+    ]
+    for item in toc_items:
+        add_para(doc, item, first_line_indent=False)
+
+    doc.add_page_break()
+
+    # ============= 1 问题重述 =============
+    add_heading(doc, '1  问题重述', level=1)
+    add_para(doc,
+        '某互联网公司针对某产品投放SEM广告，共设计了5个方案、12个推广单元和6000多个关键词，'
+        '2025年投入资金约142万元，取得了一定效益。在关键词竞价成本持续攀升、行业竞争激烈'
+        '的背景下，单纯依靠增加预算抢占流量的传统模式已不可持续。如何优化关键词组合和'
+        '投放策略，进一步提高广告投放综合效益，是企业面临的核心问题。'
+    )
+    add_para(doc, '具体地，本文需要解决以下四个问题：')
+
+    add_heading(doc, '1.1  问题一', level=2)
+    add_para(doc,
+        '根据附件1提供的2025年相关数据，从广告的设计质量与创意、关键词的管理与运用、'
+        '出价策略与预算、投放策略与时间四个方面分析该公司SEM广告投放策略的合理性，'
+        '并分析投放效益与投放时间的变化规律和假日效应。'
+    )
+
+    add_heading(doc, '1.2  问题二', level=2)
+    add_para(doc,
+        '按照投入成本与效益将关键词分为五类：黄金词（低成本、高效益）、重点词（高成本、'
+        '高效益）、潜力词（低成本、低效益）、问题词（高成本、低效益）、无效词（无成本、'
+        '无效益）。详细结果保存到 result2.xlsx。'
+    )
+
+    add_heading(doc, '1.3  问题三', level=2)
+    add_para(doc,
+        '在问题1和问题2的基础上，根据关键词类型和关联关系，在保证各推广单元低成本、'
+        '高效益、完成但不超过预算资金的条件下，为每个推广单元选择合适的关键词，'
+        '给出2025年2月1-8日和8月1-8日每天的最优投放策略。'
+        '详细结果保存到 result3.xlsx。'
+    )
+
+    add_heading(doc, '1.4  问题四', level=2)
+    add_para(doc,
+        '2026年沿用同样的方案、推广单元和关键词，预算不超2025年投入。考虑到每个关键词'
+        '的竞价每天都在变化，展现量、展现位、点击量、浏览量、注册量等因素存在不确定性，'
+        '给出2026年9月11-17日每天的最优投放策略，并估计关键指标的期望范围。'
+        '详细结果保存到 result4.xlsx。'
+    )
+
+    # ============= 2 问题分析 =============
+    add_heading(doc, '2  问题分析', level=1)
+    add_para(doc,
+        '本节对四个问题进行整体分析，明确建模思路与方法选择。'
+    )
+
+    add_heading(doc, '2.1  数据概览', level=2)
+    add_para(doc,
+        '附件1包含三张表：'
+        '(1) Sheet1为方案/单元/日期维度的投放记录（2627条，5个方案，12个推广单元，'
+        '全年365天），字段涵盖展现量、点击量、消费额、上方位指标等；'
+        '(2) Sheet2为每日新注册用户数（365条，全年累计注册85313人）；'
+        '(3) Sheet3为关键词的年度统计（2227个关键词，其中1337个有消费、890个无消费）。'
+    )
+    add_image_placeholder(doc, '数据概览图（方案占比、关键词数量分布等）', '图2-1')
+
+    add_heading(doc, '2.2  问题一分析', level=2)
+    add_para(doc,
+        '问题一属于描述性统计分析任务。需从设计质量（方案/单元结构合理性）、'
+        '关键词管理（有效率与长尾分布）、出价策略（CPC与上方位竞价）、'
+        '时间规律（月度/周度/日度趋势）、假日效应（春节、618、双11等）五个维度展开。'
+        '方法上主要采用对比分析、相关分析、归因分析等。'
+    )
+
+    add_heading(doc, '2.3  问题二分析', level=2)
+    add_para(doc,
+        '问题二属于分类任务。核心是定义"成本"和"效益"两个量化指标，再据此将关键词'
+        '分为五类。其中"无效词"（无消费、无效益）较为直观，其余四类需结合阈值进行划分。'
+        '方法上可采用K-means聚类、决策树或基于分位数的规则分类。'
+    )
+
+    add_heading(doc, '2.4  问题三分析', level=2)
+    add_para(doc,
+        '问题三属于优化任务。决策变量为每个推广单元下每个关键词的投放金额（每日）。'
+        '约束条件包括：总预算上限、各推广单元预算上限、低成本高效益的关键词类型要求、'
+        '关键词与推广单元的关联关系。目标函数为最大化点击量、浏览量或注册量。'
+        '建议建立混合整数规划（MILP）模型求解。'
+    )
+
+    add_heading(doc, '2.5  问题四分析', level=2)
+    add_para(doc,
+        '问题四是问题三的扩展，加入了不确定性因素。需基于历史数据估计每个关键词'
+        '各项指标的概率分布，再采用蒙特卡洛模拟或鲁棒优化求解。'
+        '结果需给出每日最优策略和关键指标的期望区间。'
+    )
+
+    # ============= 3 模型假设 =============
+    add_heading(doc, '3  模型假设', level=1)
+    add_para(doc,
+        '为简化问题并保证模型的合理性，本文做出以下假设：'
+    )
+    add_para(doc, '假设1：关键词之间的效果相互独立，不存在显著的协同或排斥效应。', first_line_indent=False)
+    add_para(doc, '假设2：同一关键词在相近时间窗口内的CTR、CPC等指标相对稳定，可用历史均值估计未来表现。', first_line_indent=False)
+    add_para(doc, '假设3：注册量与点击量呈线性或可建模的非线性关系，可基于历史数据回归。', first_line_indent=False)
+    add_para(doc, '假设4：预算为硬约束，不可突破；其他指标均为软约束。', first_line_indent=False)
+    add_para(doc, '假设5：忽略广告投放中的边际效益递减效应（在预算约束范围内）。', first_line_indent=False)
+    add_para(doc, '假设6：假日效应仅考虑节假日及主要购物节，不考虑突发事件。', first_line_indent=False)
+
+    # ============= 4 符号说明 =============
+    add_heading(doc, '4  符号说明', level=1)
+    add_para(doc, '表4-1  主要符号说明', first_line_indent=False)
+    headers = ['符号', '含义', '单位']
+    rows = [
+        ('P', '方案集合，|P|=5', '—'),
+        ('U', '推广单元集合，|U|=12', '—'),
+        ('K', '关键词集合，|K|=2227', '—'),
+        ('D', '投放日期集合', '天'),
+        ('c_k', '关键词 k 的平均点击成本（CPC）', '元/次'),
+        ('CTR_k', '关键词 k 的点击率', '%'),
+        ('v_k', '关键词 k 的展现量', '次'),
+        ('clk_k', '关键词 k 的点击量', '次'),
+        ('reg_k', '关键词 k 的注册转化数', '人'),
+        ('x_{k,d}', '第 d 天关键词 k 的投入金额', '元'),
+        ('B', '总预算上限', '元'),
+        ('α', '风险厌恶系数（鲁棒优化参数）', '—'),
+    ]
+    add_section_table(doc, headers, rows, col_widths_cm=[2.5, 9.5, 2.0])
+
+    doc.add_page_break()
+
+    # ============= 5 模型建立与求解 =============
+    add_heading(doc, '5  模型建立与求解', level=1)
+
+    # ----- 5.1 问题一 -----
+    add_heading(doc, '5.1  问题一：投放策略合理性分析', level=2)
+
+    add_heading(doc, '5.1.1  设计质量与创意分析', level=3)
+    add_para(doc,
+        '从方案/单元的层级结构分析投放设计。统计各方案的关键词数量、消费额占比、'
+        '展现量与点击量分布，计算各推广单元的"上方位占比"（反映创意质量与竞价能力）。'
+    )
+    add_image_placeholder(doc, '5个方案的消费额/展现量/点击量对比柱状图', '图5-1')
+    add_image_placeholder(doc, '12个单元的上方位占比分布', '图5-2')
+
+    add_heading(doc, '5.1.2  关键词管理与运用', level=3)
+    add_para(doc,
+        '统计关键词的有效率（1337/2227 ≈ 60%）与长尾分布特征，'
+        '识别高跳出率、低浏览量的关键词，评估关键词健康度。'
+    )
+    add_image_placeholder(doc, '关键词有效率与跳出率散点图', '图5-3')
+
+    add_heading(doc, '5.1.3  出价策略与预算', level=3)
+    add_para(doc,
+        '对比各方案/单元的CPC、上方位CPC，分析出价效率；'
+        '用消费额的时间序列识别预算使用节奏（是否存在月末突击消耗现象）。'
+    )
+    add_image_placeholder(doc, '各方案CPC对比及时间序列', '图5-4')
+
+    add_heading(doc, '5.1.4  投放策略与时间规律', level=3)
+    add_para(doc,
+        '从月度、周度、星期三个时间粒度分析消费与注册量变化规律，'
+        '识别周期性特征；用相关系数衡量消费与注册的关系。'
+    )
+    add_image_placeholder(doc, '月度消费/点击/注册量趋势', '图5-5')
+    add_image_placeholder(doc, '按周/按日的周期性分析', '图5-6')
+
+    add_heading(doc, '5.1.5  假日效应分析', level=3)
+    add_para(doc,
+        '分别考察法定节假日（春节、五一、十一）和主要购物节（618、双11、双12）'
+        '对消费和注册量的影响，用t检验或Mann-Whitney U检验判断显著性。'
+    )
+    add_image_placeholder(doc, '节假日与普通日的注册量对比箱线图', '图5-7')
+
+    add_heading(doc, '5.1.6  综合评价结论', level=3)
+    add_para(doc,
+        '【待填】综合以上五方面，给出该公司2025年SEM投放策略的优势与不足，'
+        '指出可改进的具体方向。'
+    )
+
+    # ----- 5.2 问题二 -----
+    add_heading(doc, '5.2  问题二：关键词五分类', level=2)
+
+    add_heading(doc, '5.2.1  成本与效益指标定义', level=3)
+    add_para(doc,
+        '本文以关键词的 CPC 作为"成本"指标，以 预估注册转化数 作为"效益"指标。'
+        '其中注册转化数 = 点击量 × 注册转化率，注册转化率通过按推广单元回归得到。'
+    )
+    add_para(doc,
+        '为消除量纲差异，对两个指标分别做对数变换后用于分类。'
+    )
+
+    add_heading(doc, '5.2.2  分类阈值与算法', level=3)
+    add_para(doc,
+        '采用K-means聚类（k=4）将有效关键词分为四类，'
+        '结合分位数阈值法对边界词进行复核；'
+        '消费额为0的关键词直接归为"无效词"。'
+    )
+    add_image_placeholder(doc, '关键词五分类散点图（成本-效益二维空间）', '图5-8')
+
+    add_heading(doc, '5.2.3  分类结果', level=3)
+    add_para(doc, '表5-1  关键词五分类统计结果', first_line_indent=False)
+    headers = ['类别', '数量', '占比', '平均消费(元)', '平均效益']
+    rows = [
+        ('黄金词', '【待填】', '【待填】', '【待填】', '【待填】'),
+        ('重点词', '【待填】', '【待填】', '【待填】', '【待填】'),
+        ('潜力词', '【待填】', '【待填】', '【待填】', '【待填】'),
+        ('问题词', '【待填】', '【待填】', '【待填】', '【待填】'),
+        ('无效词', '【待填】', '【待填】', '【待填】', '【待填】'),
+    ]
+    add_section_table(doc, headers, rows, col_widths_cm=[2.5, 2.5, 2.5, 3.5, 3.0])
+    add_para(doc, '详细结果见附件 result2.xlsx。')
+
+    # ----- 5.3 问题三 -----
+    add_heading(doc, '5.3  问题三：基于预算约束的最优投放模型', level=2)
+
+    add_heading(doc, '5.3.1  决策变量与目标函数', level=3)
+    add_para(doc,
+        '决策变量 x_{k,d} 表示第 d 天关键词 k 的投入金额（连续变量）。'
+        '目标函数为最大化期间总注册量：'
+    )
+    p = doc.add_paragraph()
+    p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    run = p.add_run('max  Σ_d Σ_k  reg_rate_k × click_k × x_{k,d} / c_k')
+    run.font.size = Pt(11); run.bold = True
+
+    add_heading(doc, '5.3.2  约束条件', level=3)
+    add_para(doc, '（1）总预算约束：Σ_d Σ_k x_{k,d} ≤ B')
+    add_para(doc, '（2）单日预算约束：Σ_k x_{k,d} ≤ B_d')
+    add_para(doc, '（3）单元预算约束：Σ_{k∈u} x_{k,d} ≤ B_u')
+    add_para(doc, '（4）方案预算约束：Σ_{k∈p} x_{k,d} ≤ B_p')
+    add_para(doc, '（5）关键词类型约束：每单元至少包含【X】个黄金词、≤【Y】个问题词')
+    add_para(doc, '（6）非负约束：x_{k,d} ≥ 0')
+
+    add_heading(doc, '5.3.3  求解方法与结果', level=3)
+    add_para(doc,
+        '使用Python的 PuLP 或 scipy.optimize 求解线性规划。'
+        '针对2025-02-01至2025-02-08（春节后）和2025-08-01至2025-08-08（暑期）两个周期，'
+        '分别求解每日最优策略。'
+    )
+    add_image_placeholder(doc, '两个周期的每日预算分配与预期注册量', '图5-9')
+
+    add_heading(doc, '5.3.4  策略优越性分析', level=3)
+    add_para(doc,
+        '将模型优化结果与2025年实际投放进行对比，计算节约成本（%）和提升注册量（%），'
+        '验证模型的有效性。'
+    )
+    add_image_placeholder(doc, '实际vs优化的投入与注册量对比柱状图', '图5-10')
+
+    # ----- 5.4 问题四 -----
+    add_heading(doc, '5.4  问题四：不确定性优化模型', level=2)
+
+    add_heading(doc, '5.4.1  不确定性建模', level=3)
+    add_para(doc,
+        '对每个关键词的 竞价、展现量、点击率、注册转化率 估计其概率分布：'
+    )
+    add_para(doc, '（1）竞价 c_k：基于2025年数据拟合正态分布 c_k ~ N(μ_c, σ_c²)', first_line_indent=False)
+    add_para(doc, '（2）点击率 CTR_k：Beta分布或正态分布', first_line_indent=False)
+    add_para(doc, '（3）注册转化率 reg_k：基于历史均值+置信区间', first_line_indent=False)
+
+    add_heading(doc, '5.4.2  鲁棒优化模型', level=3)
+    add_para(doc,
+        '采用Bertsimas-Sim鲁棒优化方法，对不确定性参数引入预算集 U(Γ)，'
+        '在最坏情况下保证目标函数值不低于期望值的 (1-α) 倍。'
+    )
+    p = doc.add_paragraph()
+    p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    run = p.add_run('max_{x} min_{ξ∈U}  f(x, ξ)')
+    run.font.size = Pt(11); run.bold = True
+
+    add_heading(doc, '5.4.3  蒙特卡洛模拟与置信区间', level=3)
+    add_para(doc,
+        '对最优解进行N=10000次蒙特卡洛模拟，得到每日点击量、浏览量、注册量等指标的'
+        '均值和95%置信区间，作为期望范围。'
+    )
+    add_image_placeholder(doc, '蒙特卡洛模拟结果分布（直方图+置信区间）', '图5-11')
+
+    add_heading(doc, '5.4.4  2026年9月11-17日最优策略', level=3)
+    add_para(doc, '表5-2  问题4最优策略与指标期望范围（节选）', first_line_indent=False)
+    headers = ['日期', '方案ID', '推广单元', '关键词', '投入(元)', '预期点击', '预期浏览', '预期注册']
+    rows = [
+        ('【待填】', '【待填】', '【待填】', '【待填】', '【待填】', '【待填】', '【待填】', '【待填】'),
+        ('...', '...', '...', '...', '...', '...', '...', '...'),
+    ]
+    add_section_table(doc, headers, rows, col_widths_cm=[2.0, 1.8, 2.0, 2.0, 1.5, 1.5, 1.5, 1.5])
+    add_para(doc, '详细结果见附件 result4.xlsx。')
+
+    # ============= 6 模型评价与推广 =============
+    add_heading(doc, '6  模型评价与推广', level=1)
+
+    add_heading(doc, '6.1  模型优点', level=2)
+    add_para(doc,
+        '（1）数据驱动：所有分析均基于附件提供的真实数据，方法客观可复现。'
+    )
+    add_para(doc,
+        '（2）多维度：问题一从五个维度全面评价，问题四考虑不确定性，符合实际运营需求。'
+    )
+    add_para(doc,
+        '（3）可解释：所有参数（如CPC、注册率）具有明确的业务含义，便于决策者理解。'
+    )
+
+    add_heading(doc, '6.2  模型不足', level=2)
+    add_para(doc,
+        '（1）独立性假设可能忽略关键词间的协同效应；'
+        '（2）历史数据回归难以捕捉突发市场变化；'
+        '（3）整数规划在大规模问题上可能求解较慢，需考虑启发式算法。'
+    )
+
+    add_heading(doc, '6.3  模型推广', level=2)
+    add_para(doc,
+        '本文方法可推广到其他互联网广告场景（信息流广告、社交广告等），'
+        '也可拓展为多产品联合优化的资源分配问题。'
+    )
+
+    # ============= 7 参考文献 =============
+    add_heading(doc, '7  参考文献', level=1)
+    refs = [
+        '[1] 邵兵家,杨淼雨. 搜索引擎营销(SEM)实战[M]. 北京: 清华大学出版社, 2019.',
+        '[2] 刘鹏,王超. 计算广告学[M]. 北京: 人民邮电出版社, 2019.',
+        '[3] Bertsimas D, Sim M. The price of robustness[J]. Operations Research, 2004, 52(1): 35-53.',
+        '[4] Boyd S, Vandenberghe L. Convex Optimization[M]. Cambridge University Press, 2004.',
+        '[5] 李航. 统计学习方法[M]. 北京: 清华大学出版社, 2019.',
+        '[6] 周志华. 机器学习[M]. 北京: 清华大学出版社, 2016.',
+        '[7] 高德纳咨询. 中国搜索引擎营销市场研究报告[R]. 2024.',
+        '[8] 陈宝权, 等. 数据驱动的运营优化方法[J]. 中国管理科学, 2023, 31(5): 100-110.',
+    ]
+    for r in refs:
+        add_para(doc, r, first_line_indent=False)
+
+    # ============= 8 附录 =============
+    add_heading(doc, '8  附录', level=1)
+    add_heading(doc, '附录A  主要代码', level=2)
+    add_para(doc, '附录A.1  数据预处理（src/data_loader.py）', first_line_indent=False)
+    add_para(doc, '附录A.2  问题一分析（src/q1_analysis.py）', first_line_indent=False)
+    add_para(doc, '附录A.3  问题二分类（src/q2_classify.py）', first_line_indent=False)
+    add_para(doc, '附录A.4  问题三优化（src/q3_optimizer.py）', first_line_indent=False)
+    add_para(doc, '附录A.5  问题四不确定性优化（src/q4_uncertainty.py）', first_line_indent=False)
+
+    add_heading(doc, '附录B  结果文件', level=2)
+    add_para(doc, '附件B.1  result2.xlsx（问题二关键词分类）', first_line_indent=False)
+    add_para(doc, '附件B.2  result3.xlsx（问题三投放策略）', first_line_indent=False)
+    add_para(doc, '附件B.3  result4.xlsx（问题四优化策略）', first_line_indent=False)
+
+    add_heading(doc, '附录C  图表汇总', level=2)
+    figs = [
+        ('图2-1', '数据概览图'),
+        ('图5-1', '5个方案的消费/展现/点击对比'),
+        ('图5-2', '12个单元的上方位占比'),
+        ('图5-3', '关键词健康度分布'),
+        ('图5-4', '各方案CPC对比'),
+        ('图5-5', '月度趋势'),
+        ('图5-6', '周期性分析'),
+        ('图5-7', '假日效应箱线图'),
+        ('图5-8', '关键词五分类散点图'),
+        ('图5-9', '每日预算与注册量'),
+        ('图5-10', '实际vs优化对比'),
+        ('图5-11', '蒙特卡洛结果'),
+    ]
+    for fid, fdesc in figs:
+        add_para(doc, f'{fid}  {fdesc}', first_line_indent=False)
+
+    # 保存
+    output = os.path.join(PAPER_DIR, 'SEM广告投放策略优化_论文框架.docx')
+    doc.save(output)
+    print(f'\n=== 论文框架已生成 ===')
+    print(f'路径: {output}')
+    print(f'页数估算: 约15-20页（含表格和图片占位）')
+
+
+if __name__ == '__main__':
+    build_paper()
