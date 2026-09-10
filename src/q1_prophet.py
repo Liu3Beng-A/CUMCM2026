@@ -53,13 +53,14 @@ def fit_prophet(daily_df, value_col, holidays_df=None):
     df = df.sort_values('ds').reset_index(drop=True)
 
     model = Prophet(
-        yearly_seasonality=True,
+        yearly_seasonality=False,    # 改-3: 一年数据不足以学年度季节（避免 Prophet 警告）
         weekly_seasonality=True,
         daily_seasonality=False,
         changepoint_prior_scale=0.05,  # 趋势变化敏感度
         seasonality_prior_scale=10,
         holidays=holidays_df,
         holidays_prior_scale=20,
+        interval_width=0.95,           # 改-3: 输出 yhat_lower / yhat_upper（95% 置信区间）
     )
     model.fit(df)
     return model
@@ -85,30 +86,41 @@ def decompose_series(daily_series, value_col, title='消费额', suffix=''):
         '日期': daily_series['日期'].values,
         '实际值': daily_series[value_col].values,
         '正常预测': forecast['yhat'].values,
+        '正常预测下界': forecast['yhat_lower'].values,    # 改-3: 95% 置信区间下界
+        '正常预测上界': forecast['yhat_upper'].values,    # 改-3: 95% 置信区间上界
         '无假日预测': forecast_cf['yhat'].values,
     })
     compare['节日贡献(实际-无假日)'] = compare['实际值'] - compare['无假日预测']
     compare['节日贡献百分比'] = compare['节日贡献(实际-无假日)'] / compare['无假日预测'].replace(0, np.nan) * 100
+    # 改-3: 反事实置信区间（无假日模型）
+    compare['无假日预测下界'] = forecast_cf['yhat_lower'].values
+    compare['无假日预测上界'] = forecast_cf['yhat_upper'].values
+    compare['节日贡献下界'] = compare['实际值'] - compare['无假日预测上界']   # 贡献的下界（保守估计）
+    compare['节日贡献上界'] = compare['实际值'] - compare['无假日预测下界']   # 贡献的上界
 
     # 画图
     plt = apply_style()
     fig, axes = plt.subplots(4, 1, figsize=(13, 12))
 
-    # (1) 原始 + 预测
+    # (1) 原始 + 预测（含置信区间）
     ax = axes[0]
-    ax.plot(compare['日期'], compare['实际值'], label='实际', linewidth=1.0)
-    ax.plot(compare['日期'], compare['正常预测'], label='Prophet预测', linewidth=1.0, alpha=0.7)
-    ax.plot(compare['日期'], compare['无假日预测'], label='反事实(无假日)', linewidth=1.0, alpha=0.7, linestyle='--')
+    ax.plot(compare['日期'], compare['实际值'], label='实际', linewidth=1.0, color='#2E86AB')
+    ax.plot(compare['日期'], compare['正常预测'], label='Prophet预测', linewidth=1.0, alpha=0.7, color='#F18F01')
+    ax.plot(compare['日期'], compare['无假日预测'], label='反事实(无假日)', linewidth=1.0, alpha=0.7, linestyle='--', color='#A23B72')
+    # 改-3: 置信区间
+    ax.fill_between(compare['日期'], forecast['yhat_lower'], forecast['yhat_upper'],
+                    color='#F18F01', alpha=0.15, label='95% 置信区间')
     ax.set_title(f'(a) {title} 实际 vs 预测 vs 反事实模拟', fontsize=12)
     ax.set_ylabel(value_col)
-    ax.legend()
+    ax.legend(loc='upper left', fontsize=9)
     ax.grid(True, alpha=0.3)
 
     # (2) 趋势 + 季节性
     ax = axes[1]
     c1 = '#2E86AB'
     ax.plot(forecast['ds'], forecast['trend'], label='趋势', color=c1)
-    ax.plot(forecast['ds'], forecast['yearly'], label='年度季节性', color='#F18F01')
+    if 'yearly' in forecast.columns:
+        ax.plot(forecast['ds'], forecast['yearly'], label='年度季节性', color='#F18F01')
     ax.plot(forecast['ds'], forecast['weekly'], label='周季节性', color='#A23B72')
     if 'holidays' in forecast.columns:
         ax.plot(forecast['ds'], forecast['holidays'], label='节假日效应', color='#06A77D')
