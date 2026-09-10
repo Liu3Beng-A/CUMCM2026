@@ -1,0 +1,35 @@
+# PDF 文件查看方法
+
+直接用 Python + pdfminer.six 读取中文 PDF（避免 PowerShell 文件名乱码和 GBK 编码错误）。
+
+## 安装
+
+```bash
+pip install pdfminer.six -q
+```
+
+## 一次性脚本（复制粘贴即可）
+
+把 `pdf_dir` 改成实际路径即可：
+
+```python
+import sys, io
+sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
+from pdfminer.high_level import extract_text
+import os
+
+pdf_dir = r'D:\CUMCM2026Problems'  # ← 改这里
+pdf_files = sorted([f for f in os.listdir(pdf_dir) if f.endswith('.pdf')])
+
+for i, pdf_file in enumerate(pdf_files):
+    pdf_path = os.path.join(pdf_dir, pdf_file)
+    print(f'=== {chr(65+i)} {pdf_file} ===')
+    print(extract_text(pdf_path))
+    print()
+```
+
+## 注意事项
+
+- 中文文件名在 PowerShell 里会显示乱码，用 `os.listdir()` 不受影响。
+- 终端先执行 `chcp 65001` 防止 UTF-8 被当成 GBK。
+- 数学符号（如 𝑡、𝑥）会触发编码报错，遇到坏文件单独 try/except 跳过即可。
