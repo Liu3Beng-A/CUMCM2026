@@ -185,13 +185,13 @@ def holiday_contribution(compare):
 
 
 def holiday_box_plot(data):
-    """绘制节假日 vs 工作日 箱线图"""
+    """绘制节假日 vs 工作日 小提琴图（含 IQR 箱 + 中位数）"""
     print('[q1-prophet] 节假日vs工作日对比...', flush=True)
     daily = data['daily_full'].copy()
     daily['星期几'] = daily['日期'].dt.dayofweek
 
-    # 标节日
-    holiday_dates = set([d for d, _ in ALL_HOLIDAYS])
+    # 标节日（改-14: 把字符串日期转 Timestamp 才能跟 daily['日期'] 匹配，原版有匹配失败的 bug）
+    holiday_dates = set([pd.to_datetime(d) for d, _ in ALL_HOLIDAYS])
     daily['是否节日'] = daily['日期'].isin(holiday_dates)
 
     # 拆分
@@ -202,6 +202,7 @@ def holiday_box_plot(data):
     plt = apply_style()
     fig, axes = plt.subplots(1, 2, figsize=(13, 5))
 
+    # 改-14: 与 bid_strategy (c) 一致——小提琴（密度）+ 简化 IQR 箱（去 outlier 圆点）
     for ax, col, title in zip(axes, ['总消费额', '新注册数'],
                               ['(a) 节假日 / 工作日 / 周末 消费额分布',
                                '(b) 节假日 / 工作日 / 周末 注册量分布']):
@@ -210,16 +211,42 @@ def holiday_box_plot(data):
             normal[col].dropna(),
             weekend[col].dropna(),
         ]
-        bp = ax.boxplot(data_to_plot, labels=['节假日', '工作日', '周末'],
-                        patch_artist=True, showmeans=True)
-        for patch, color in zip(bp['boxes'], [COLORS['accent'], COLORS['primary'], COLORS['secondary']]):
-            patch.set_facecolor(color)
-            patch.set_alpha(0.6)
-        ax.set_title(title, fontsize=12)
-        ax.grid(True, alpha=0.3)
-        ax.set_ylabel(col)
+        positions = np.arange(3)
+        colors = [COLORS['accent'], COLORS['primary'], COLORS['secondary']]
 
-    fig.suptitle('问题 1：节假日效应对比分析', fontsize=14, fontweight='bold')
+        # 小提琴（密度）
+        parts = ax.violinplot(data_to_plot, positions=positions, widths=0.75,
+                              showmeans=False, showmedians=False, showextrema=False)
+        for pc, color in zip(parts['bodies'], colors):
+            pc.set_facecolor(color)
+            pc.set_edgecolor('black')
+            pc.set_alpha(0.55)
+            pc.set_linewidth(1.0)
+
+        # IQR 箱（不画 outlier 圆点）+ 中位数 + 均值菱形
+        bp = ax.boxplot(data_to_plot, positions=positions, widths=0.20,
+                        patch_artist=True, showfliers=False, showmeans=True,
+                        medianprops=dict(color='black', linewidth=1.8),
+                        meanprops=dict(marker='D', markerfacecolor='white',
+                                       markeredgecolor='black', markersize=6),
+                        whiskerprops=dict(color='black', linewidth=1.0),
+                        capprops=dict(color='black', linewidth=1.0))
+        for patch, color in zip(bp['boxes'], colors):
+            patch.set_facecolor(color); patch.set_alpha(0.95)
+
+        # 样本数
+        for i, n in enumerate([len(d) for d in data_to_plot]):
+            ax.text(i, ax.get_ylim()[0] * 1.05 if ax.get_ylim()[0] > 0 else -ax.get_ylim()[1]*0.05,
+                    f'N={n}', ha='center', va='top', fontsize=8, color='#555555')
+
+        ax.set_xticks(positions)
+        ax.set_xticklabels(['节假日', '工作日', '周末'])
+        ax.set_title(title, fontsize=12)
+        ax.grid(True, alpha=0.3, axis='y')
+        ax.set_ylabel(col + ('（元）' if col == '总消费额' else '（人）'))
+        ax.set_ylim(bottom=0)
+
+    fig.suptitle('问题 1：节假日效应对比分析（小提琴 + IQR 箱）', fontsize=14, fontweight='bold')
     fig.tight_layout()
     save_fig(fig, 'q1_holiday_boxplot', subdir='results')
     plt.close(fig)

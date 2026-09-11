@@ -223,18 +223,14 @@ def _plot_bootstrap_ci(df, n_boot=100, value_cols=('总消费额', '新注册数
 
         colors = [COLORS['primary'] if r['日期'] not in SHOPPING_DATES
                   else COLORS['accent'] for _, r in sub.iterrows()]
-        sig_vals = set(sub[sub['p值(双侧)'] < 0.05]['均值差'].values)
 
         ax.errorbar(sub['均值差'], x,
                     xerr=[sub['均值差'] - sub['CI下限(2.5%)'], sub['CI上限(97.5%)'] - sub['均值差']],
-                    fmt='o', color=COLORS['primary'], ecolor=COLORS['secondary'],
-                    capsize=3, markersize=5)
-        for xi, (yi, c) in enumerate(zip(sub['均值差'], colors)):
-            is_sig = sub.iloc[xi]['p值(双侧)'] < 0.05
-            ax.scatter(yi, xi, color=c,
-                       s=70 if is_sig else 40,
-                       edgecolors='black' if is_sig else 'none',
-                       linewidths=1.2, zorder=5)
+                    fmt='none', ecolor=COLORS['secondary'],
+                    capsize=3, elinewidth=1.0, alpha=0.7)
+        # 改-14-2: 所有点统一小圆，不靠大小区分显著性（颜色已足够）
+        for xi, yi in enumerate(sub['均值差']):
+            ax.scatter(yi, xi, color=colors[xi], s=40, edgecolors='none', zorder=5)
 
         ax.axvline(0, color='red', linestyle='--', alpha=0.5, label='零线')
 

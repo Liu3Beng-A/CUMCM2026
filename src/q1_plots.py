@@ -29,15 +29,31 @@ def fig_design_quality(data):
     ax = axes[0, 0]
     x = np.arange(len(plan_total))
     w = 0.25
-    ax.bar(x - w, plan_total['展现量'] / 1e6, w, label='展现量(百万)', color=COLORS['primary'])
-    ax.bar(x, plan_total['点击量'] / 1e3, w, label='点击量(千)', color=COLORS['secondary'])
-    ax.bar(x + w, plan_total['消费额'] / 1e4, w, label='消费额(万)', color=COLORS['accent'])
+    # 改-14: 由于 63563817 展现量 ≈ 1.78M，几乎不可读。改用对数刻度避免极端悬殊
+    bars1 = ax.bar(x - w, plan_total['展现量'] / 1e6, w, label='展现量(百万)', color=COLORS['primary'])
+    bars2 = ax.bar(x, plan_total['点击量'] / 1e3, w, label='点击量(千)', color=COLORS['secondary'])
+    bars3 = ax.bar(x + w, plan_total['消费额'] / 1e4, w, label='消费额(万)', color=COLORS['accent'])
+    # 改-14: 在每根 bar 顶端标注精确数值（保留单位），解决"百万级展现量在数值轴几乎为零"
+    for b, v in zip(bars1, plan_total['展现量']):
+        ax.text(b.get_x() + b.get_width()/2, b.get_height() + 0.5, f'{v/1e6:.2f}M',
+                ha='center', va='bottom', fontsize=8, color=COLORS['primary'])
+    for b, v in zip(bars2, plan_total['点击量']):
+        ax.text(b.get_x() + b.get_width()/2, b.get_height() + 0.5, f'{v/1e3:.1f}K',
+                ha='center', va='bottom', fontsize=8, color=COLORS['secondary'])
+    # 改-14-2: 消费额标签固定在 bar 顶上方 3 单位处，x 在 bar 右侧偏外
+    for b, v in zip(bars3, plan_total['消费额']):
+        ax.text(b.get_x() + b.get_width()-0.22, b.get_height() + 0.5,
+                f'{v/1e4:.1f}万',
+                ha='left', va='bottom', fontsize=8, color=COLORS['accent'])
+    ax.set_xlim(-0.5, 4.5)
     ax.set_xticks(x)
     ax.set_xticklabels([str(p) for p in plan_total['方案ID']], rotation=15)
-    ax.set_title('(a) 5个方案核心指标对比')
-    ax.legend()
+    ax.set_title('(a) 5个方案核心指标对比（条顶标注精确数值）')
+    ax.legend(loc='upper right', fontsize=8)
     ax.grid(True, alpha=0.3)
     ax.set_ylabel('数值')
+    # 改-14-2: 设置 xlim 防止最右侧"21.6万"标签被截断（在 bar/text 之后立即设置）
+    ax.set_xlim(-0.5, 4.5)
 
     # (b) 12个单元的上方位占比
     ax = axes[0, 1]
@@ -77,23 +93,38 @@ def fig_design_quality(data):
     cost_min = plan_total['消费额'].min()
     cost_max = plan_total['消费额'].max()
     cost_norm = (plan_total['消费额'] - cost_min) / (cost_max - cost_min)
-    sizes = 60 + 800 * cost_norm  # 范围 60~860，6.4× 差异
+    # 改-14: 圆面积 60→800 太大，"穿模"严重；缩小到 40→260（约 2.4× 差异，仍可读）
+    sizes = 40 + 220 * cost_norm
     ax.scatter(plan_total['CPC'], plan_total['上方位CTR'], s=sizes, alpha=0.6,
                color=COLORS['primary'], edgecolors='black', linewidth=0.8)
+    # 改-14-2: 495403620 的标签放右侧（避免与纵轴重叠），其余放左侧；图例移右上
     for _, row in plan_total.iterrows():
-        ax.annotate(str(int(row['方案ID'])), (row['CPC'], row['上方位CTR']), fontsize=9)
-    # 改-7: 加 size 图例
-    for frac, lab in [(0.0, f'{cost_min/1e4:.1f}万'),
-                       (0.5, f'{(cost_min + (cost_max-cost_min)*0.5)/1e4:.1f}万'),
-                       (1.0, f'{cost_max/1e4:.1f}万')]:
-        s_leg = 60 + 800 * frac
-        ax.scatter([], [], s=s_leg, color=COLORS['primary'], alpha=0.6,
-                   edgecolors='black', linewidth=0.8, label=f'消费额 {lab}')
+        pid = int(row['方案ID'])
+        if pid == 495403620:
+            # 495403620 靠左轴，标签放右侧偏下（避免与 500635396 标签重叠）
+            ax.annotate(str(pid), (row['CPC'], row['上方位CTR']),
+                        xytext=(10, -14), textcoords='offset points',
+                        fontsize=9, ha='left', va='top')
+        else:
+            ax.annotate(str(pid), (row['CPC'], row['上方位CTR']),
+                        xytext=(-8, 4), textcoords='offset points',
+                        fontsize=9, ha='right', va='bottom')
+    # 图例移右上（避免挡住 500635396 散点）
+    leg_handles = [
+        ax.scatter([], [], s=40,  color=COLORS['primary'], alpha=0.6,
+                   edgecolors='black', linewidth=0.8, label=f'消费额 {cost_min/1e4:.1f}万'),
+        ax.scatter([], [], s=150, color=COLORS['primary'], alpha=0.6,
+                   edgecolors='black', linewidth=0.8,
+                   label=f'消费额 {(cost_min + (cost_max-cost_min)*0.5)/1e4:.1f}万'),
+        ax.scatter([], [], s=260, color=COLORS['primary'], alpha=0.6,
+                   edgecolors='black', linewidth=0.8, label=f'消费额 {cost_max/1e4:.1f}万'),
+    ]
+    ax.legend(handles=leg_handles, loc='upper right', fontsize=8,
+              scatterpoints=1, framealpha=0.9, labelspacing=1.2, borderpad=0.8)
     ax.set_xlabel('CPC（元）')
     ax.set_ylabel('上方位CTR')
     ax.set_title('(d) 各方案出价-效益地图（圆面积=消费额）')
     ax.grid(True, alpha=0.3)
-    ax.legend(loc='upper right', fontsize=8, scatterpoints=1)
 
     fig.suptitle('问题 1：设计质量与创意分析', fontsize=14, fontweight='bold')
     fig.tight_layout()
@@ -126,28 +157,37 @@ def fig_keyword_management(data):
     total = eff_sorted['消费额'].sum()
     cum = eff_sorted['消费额'].cumsum() / total
     ax2 = ax.twinx()
+    # 改-19: y 轴改为对数刻度，让 1元 / 100元 / 10万元 三档柱条都能看清
+    #        数据未改动 (附件1.xlsx / q1_data_prep.py / keyword_total.pkl 都没动)
+    ax.set_yscale('log')
     ax.bar(range(len(eff_sorted)), eff_sorted['消费额'],
-           color=COLORS['primary'], alpha=0.6, label='各关键词消费额')
+           color='#1F4E79', alpha=0.2, edgecolor='#0D2A52', linewidth=0.3,
+           label='各关键词消费额')
     ax2.plot(range(len(eff_sorted)), cum, color=COLORS['danger'], linewidth=2, label='累计占比')
     # 改-7: 更明显的 80% 阈值线 + 头 20% 关键词区域高亮
     idx20 = int(len(eff_sorted) * 0.2)
     cum_at_20 = cum.iloc[idx20]
+    # 改-18: 恢复 axvspan 高亮（用户要求）
     ax.axvspan(0, idx20, alpha=0.15, color=COLORS['success'],
                label=f'头20%关键词({idx20}词)')
     ax2.axhline(0.8, color='red', linestyle='--', linewidth=2, alpha=0.7, label='80%阈值')
     ax2.axhline(cum_at_20, color='green', linestyle=':', linewidth=2, alpha=0.7,
                 label=f'头20%累计={cum_at_20*100:.1f}%')
+    # 改-18: 注释保持 (0.4, 0.85) + 白底黑边
     ax2.annotate(f'前{idx20}个词({idx20/len(eff_sorted)*100:.1f}%)\n占{cum_at_20*100:.1f}%消费',
-                 (idx20, cum_at_20), xytext=(idx20+50, 0.95),
+                 xy=(idx20, cum_at_20),
+                 xytext=(len(eff_sorted) * 0.4, 0.85),
                  arrowprops=dict(arrowstyle='->', color='black', lw=1.5),
                  fontsize=10, fontweight='bold',
-                 bbox=dict(boxstyle='round,pad=0.3', facecolor='white', edgecolor='black', alpha=0.9))
-    ax.set_title('(b) 关键词消费分布的帕累托分析（头20%用绿色高亮）')
+                 bbox=dict(boxstyle='round,pad=0.3', facecolor='white', edgecolor='black', alpha=0.9),
+                 ha='center')
+    ax.set_title('(b) 关键词消费分布的帕累托分析（头20%分位线）')
     ax.set_xlabel('关键词（按消费降序）')
     ax.set_ylabel('消费额（元）', color=COLORS['primary'])
     ax2.set_ylabel('累计占比', color=COLORS['danger'])
     ax.grid(True, alpha=0.3)
-    ax.legend(loc='upper left', fontsize=8)
+    # 改-16: ax 图例从 upper left 移到 lower right（让出左上角给高消费柱条）
+    ax.legend(loc='lower right', fontsize=8)
     ax2.legend(loc='center right', fontsize=8)
 
     # (c) 跳出率分布 + 平均访问时长
@@ -211,6 +251,7 @@ def fig_bid_strategy(data):
     ax.set_title('(b) 月度预算执行节奏')
     ax.set_ylabel('消费额(元)', color=COLORS['primary'])
     ax2.set_ylabel('新注册数', color=COLORS['danger'])
+    ax.set_xticks(range(len(monthly)))
     ax.set_xticklabels(monthly['月份'], rotation=45)
     ax.legend(loc='upper left')
     ax2.legend(loc='upper right')
@@ -349,6 +390,7 @@ def fig_time_pattern(data):
     ax.plot(monthly['月份'], monthly['每元注册'], color=COLORS['success'], marker='o', linewidth=2)
     ax.set_title('(d) 月度单位注册量趋势（越高越好）')
     ax.set_ylabel('注册数/消费额(元)')
+    ax.set_xticks(range(len(monthly)))
     ax.set_xticklabels(monthly['月份'], rotation=45)
     ax.grid(True, alpha=0.3)
 
