@@ -14,7 +14,6 @@
 | `results/` | 分析产出（图表 + 表格） | — |
 | `issue/` | 问题分析、建模假设、待解决问题清单 | — |
 | `notebooks/` | EDA 探索性脚本 | — |
-| `logs/` | 运行日志、PDF 抽取文本等中间产物 | — |
 
 ## `data/`
 
@@ -81,7 +80,7 @@ data/
 - `font_diag.py` / `font_fix.py` / `test_cn.py` — 中文字体调试
 - `check_daily.py` / `debug_dfc.py` — 数据诊断
 - `pdf_to_images.py` — PDF → PNG 抽取（已用，结果在 `paper/figures/raw_attachments/`）
-- `read_e_pdf.py` / `read_e_v2.py` — PDF 文本提取（已用，结果在 `logs/`）
+- `read_e_pdf.py` / `read_e_v2.py` — PDF 文本提取（一次性）
 - `read_templates.py` / `read_templates_v2.py` — Word 模板解析
 - `main.py` / `show_score.py` — 早期入口（已被 `q1_main.py` 取代）
 - `q2_classify.py` / `q3_optimizer.py` / `q4_uncertainty.py` — 占位脚本
@@ -153,10 +152,6 @@ q1_summary.json                      综合指标汇总
 | `issue_q1.md` | Q1 问题理解、模型假设、约束条件 |
 | `issue_q1_methods.md` | Q1 方法选择对比 |
 
-## `logs/`
-
-运行历史日志与 PDF 抽取文本。
-
 ## 入口推荐
 
 - **复现 Q1 全流程**：`python src/q1_main.py`（依赖 `data/processed/q1/*.pkl` 已存在；如不存在先跑 `q1_data_prep.py`）
@@ -167,5 +162,4 @@ q1_summary.json                      综合指标汇总
 
 见 `.gitignore`：
 - `__pycache__/`、`*.pyc`
-- `logs/*.log`
 - `data/processed/{campaign,keyword,registration}_main.pkl`（上游缓存，每次重建）

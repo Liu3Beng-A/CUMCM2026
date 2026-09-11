@@ -5,8 +5,7 @@ __pycache__/
 *.pyd
 .Python
 
-# 日志和临时输出（已统一移入 logs/，这里忽略避免到处散落）
-logs/*.log
+# 日志和临时输出
 *.log
 
 # OS

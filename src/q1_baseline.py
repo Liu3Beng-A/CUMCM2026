@@ -27,12 +27,10 @@ results/figures/q1_baseline_rank_scatter.png
 2) 熵权法：先 0-1 归一化 → 计算各维度的信息熵 → 差异系数 → 归一化得权重 → 加权求和
 3) 等权 TOPSIS：向量归一化 → 等权加权 → 欧氏距离 → 接近度 × 100
 """
-import sys, os, io
+import sys, os
 import json
 
 # UTF-8 stdout（兼容 Windows GBK）
-if hasattr(sys.stdout, 'buffer'):
-    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
 sys.stdout.reconfigure(encoding='utf-8')
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -210,7 +208,8 @@ def compute_correlations(critic_scores: np.ndarray,
     return pd.DataFrame(rows)
 
 
-def plot_rank_scatter(rank_df: pd.DataFrame, plan_ids, out_path: str):
+def plot_rank_scatter(rank_df: pd.DataFrame, plan_ids, out_path: str,
+                      corr_df: pd.DataFrame = None):
     """绘制 4 种方法排名一致性散点图。
 
     X 轴：当前 CRITIC 排名（1 = 最好）
@@ -225,9 +224,12 @@ def plot_rank_scatter(rank_df: pd.DataFrame, plan_ids, out_path: str):
         方案ID顺序。
     out_path : str
         图片保存路径。
+    corr_df : pd.DataFrame, optional
+        含 Baseline/Pearson/Spearman 三列的相关系数表（改-9）。
+        若提供，将在图右上角绘制相关系数标注框。
     """
     plt = apply_style()
-    fig, ax = plt.subplots(figsize=(9, 7))
+    fig, ax = plt.subplots(figsize=(10, 8))
 
     baselines = {
         # key in plot → (column name in rank_df, color, marker)
@@ -263,6 +265,24 @@ def plot_rank_scatter(rank_df: pd.DataFrame, plan_ids, out_path: str):
     ax.set_ylabel('Baseline 排名（1 = 最优）', fontsize=11)
     ax.set_title('问题 1：4 种评分方法的方案排名一致性', fontsize=13, fontweight='bold')
     ax.grid(True, alpha=0.3)
+
+    # 改-9：在图右下角加 Pearson/Spearman 相关系数标注框
+    if corr_df is not None and len(corr_df) > 0:
+        corr_lines = ['与 CRITIC 排名相关系数：']
+        for _, row in corr_df.iterrows():
+            corr_lines.append(
+                f'  {row["Baseline"]:<8}  '
+                f'r = {row["Pearson"]:.4f},  ρ = {row["Spearman"]:.2f}'
+            )
+        corr_text = '\n'.join(corr_lines)
+        ax.text(0.97, 0.03, corr_text,
+                transform=ax.transAxes,
+                fontsize=9, family='sans-serif',
+                verticalalignment='bottom',
+                horizontalalignment='right',
+                bbox=dict(boxstyle='round,pad=0.5',
+                          facecolor='#FFFFE0', edgecolor='gray', alpha=0.9))
+
     ax.legend(loc='upper right', fontsize=10, framealpha=0.9)
 
     fig.tight_layout()
@@ -353,7 +373,7 @@ def run_baseline_comparison():
     # ===== 排名散点图 =====
     rank_df = cmp_df[['方案ID', '当前CRITIC排名', '等权排名', '熵权排名', 'TOPSIS排名']]
     ensure_dir(os.path.dirname(OUT_FIG))
-    plot_rank_scatter(rank_df, plan_ids, OUT_FIG)
+    plot_rank_scatter(rank_df, plan_ids, OUT_FIG, corr_df=corr_df)
 
     # ===== 检查硬指标 =====
     min_spearman = corr_df['Spearman'].min()

@@ -25,6 +25,8 @@ from src.utils import TABLES_DIR, ensure_dir
 def min_max_score(x, ideal_low=True, x_min=None, x_max=None):
     """x 数值序列转 0~100 分
     ideal_low=True：值越小越好（如跳出率、问题词占比）
+
+    注意：当仅传单个值时（无对比基准），请改用 industry_score()。
     """
     x = np.array(x, dtype=float)
     if x_min is None:
@@ -34,6 +36,84 @@ def min_max_score(x, ideal_low=True, x_min=None, x_max=None):
     if ideal_low:
         s = 100 - s
     return np.clip(s, 0, 100), x_min, x_max
+
+
+# ============= 改-9（2026-09-11）：基于行业阈值的绝对评分 =============
+# 修复 min_max_score 在"单值"调用下退化为 0/100 的 bug
+#
+# 设计思路：每个二级指标对应一个"理想区间 [lo, hi]" 和一个"完全失格边界 [d_lo, d_hi]"
+#   - 落入 [lo, hi]  → 100 分（满分）
+#   - 处于 [d_lo, lo) 或 (hi, d_hi] → 线性衰减
+#   - 超出 [d_lo, d_hi]           → 0 分
+#
+# 阈值来源：综合 SEM 行业经验值 + 本数据集实际分布（P25/P50/P75）确定。
+# 与 min_max_score（数据相对）的区别：
+#   - min_max_score 适合"多方案对比"（已有 ≥ 5 个方案）
+#   - industry_score 适合"单点绝对评分"（只有 1 个全局值）
+
+# 指标 → (lo, hi, d_lo, d_hi) 字典
+# 评分规则：落入 [lo, hi] → 100 分；在 (hi, d_hi] 线性衰减 → 0 分；
+#         在 [d_lo, lo) 线性衰减 → 0 分；超出 [d_lo, d_hi] → 0 分
+INDUSTRY_THRESHOLDS = {
+    # 关键词管理：有效率（理想高）
+    '有效率':              (0.75, 0.95,  0.40,  1.00),   # 60% → ~45 分
+    # 关键词管理：CPC 中位数（理想低，元）
+    'CPC中位数':           (0.30, 1.00,  0.10,  3.00),   # 1.11 → ~67 分（合理偏高）
+    # 关键词管理：高 CPC 词占比（理想低）
+    '高价词占比':          (0.00, 0.05,  0.00,  0.30),   # 3.89% → ~87 分
+    # 关键词管理：跳出率均值（理想低，SEM 行业通常 60-80%）
+    '跳出率均值':          (0.20, 0.50,  0.10,  0.80),   # 73% → ~23 分（行业偏上）
+    # 关键词管理：高跳出词占比（理想低）
+    '高跳出词占比':        (0.05, 0.20,  0.00,  0.50),   # 41% → ~30 分
+    # 关键词管理：平均访问时长（理想高，秒）
+    '访问时长_秒':         (120.0, 240.0, 30.0, 600.0),  # 167s → ~39 分
+    # 关键词管理：长尾集中度（前 20% 占比，理想中庸 0.5-0.7）
+    '前20消费占比':        (0.50, 0.70,  0.30,  0.90),   # 99% → 0 分（极度集中）
+    # 设计质量：关键词分布基尼系数（理想低）
+    '基尼系数':            (0.15, 0.30,  0.05,  0.50),   # 0.405 → ~48 分
+    # 出价策略：上方位消费占比（理想中庸 0.4-0.6）
+    '上方位消费占比':      (0.40, 0.60,  0.20,  0.90),   # 70% → ~49 分
+}
+
+
+def interval_score(x: float, lo: float, hi: float,
+                   d_lo: float = None, d_hi: float = None) -> float:
+    """区间型绝对评分（落入 [lo, hi] 满分，区间外线性衰减）"""
+    if d_lo is None:
+        d_lo = lo - (hi - lo) * 0.5
+    if d_hi is None:
+        d_hi = hi + (hi - lo) * 0.5
+    if x is None or (isinstance(x, float) and np.isnan(x)):
+        return 50.0  # 缺失值给中性分
+    if lo <= x <= hi:
+        return 100.0
+    if x < lo:
+        if x <= d_lo:
+            return 0.0
+        return (x - d_lo) / (lo - d_lo) * 100.0
+    if x <= d_hi:
+        return (d_hi - x) / (d_hi - hi) * 100.0
+    return 0.0
+
+
+def industry_score(x: float, metric: str) -> float:
+    """根据行业阈值表对单个值绝对评分（替代 min_max_score 单值调用）
+
+    Parameters
+    ----------
+    x : float
+        待评分值
+    metric : str
+        阈值表中的键名（见 INDUSTRY_THRESHOLDS）
+
+    Returns
+    -------
+    float : 0~100 分
+    """
+    if metric not in INDUSTRY_THRESHOLDS:
+        raise KeyError(f'未知指标 {metric}，请在 INDUSTRY_THRESHOLDS 中添加阈值')
+    lo, hi, d_lo, d_hi = INDUSTRY_THRESHOLDS[metric]
+    return round(interval_score(x, lo, hi, d_lo, d_hi), 1)
 
 
 # ============= 改-2：百分位 + Z-Score 双轨区间（替代 pos_score） =============
@@ -152,12 +232,11 @@ def score_design_quality(data):
     )
     design_indicators['上方位CPC倍数评分'] = round(ratio_score.mean(), 1)
 
-    # 4) 关键词分配均衡度（基尼系数）低更均匀
+    # 4) 关键词分配均衡度（基尼系数）低更均匀（改-9: industry_score）
     plan_kw = plan_total[['方案ID', '关键词数']].copy().dropna()
     gini = gini_coefficient(plan_kw['关键词数'].values)
     design_indicators['关键词分布基尼系数'] = round(gini, 4)
-    gini_score, _, _ = min_max_score([gini] * 5, ideal_low=True)
-    design_indicators['关键词分布评分'] = round(gini_score[0], 1)
+    design_indicators['关键词分布评分'] = industry_score(gini, '基尼系数')
 
     # 综合得分（等权）
     design_indicators['综合评分'] = round(np.mean([
@@ -199,14 +278,13 @@ def score_keyword_management(data):
     """
     dfk = data['keyword_total']
 
-    # 1) 有效率
+    # 1) 有效率（改-9: 用 industry_score 替代 min_max_score 单值调用）
     effective_rate = dfk['有消费'].mean()
-    eff_score, _, _ = min_max_score([effective_rate], ideal_low=False)
     indicators = {
         '关键词总数': len(dfk),
         '有消费关键词数': int(dfk['有消费'].sum()),
         '有效率': round(effective_rate, 4),
-        '有效率评分': round(eff_score[0], 1),
+        '有效率评分': industry_score(effective_rate, '有效率'),
     }
 
     # 2) CPC分布（避免极端高价）
@@ -218,48 +296,38 @@ def score_keyword_management(data):
         indicators['CPC中位数'] = round(cpc_median, 3)
         indicators['CPC P90'] = round(cpc_p90, 3)
 
-        # 离群高价词占比 > 5元
+        # 离群高价词占比 > 5元（改-9: industry_score）
         high_cost_ratio = (cpc_valid > 5).mean()
-        hc_score, _, _ = min_max_score([high_cost_ratio], ideal_low=True)
         indicators['高价词占比(>5元)'] = round(high_cost_ratio, 4)
-        indicators['高价词评分'] = round(hc_score[0], 1)
+        indicators['高价词评分'] = industry_score(high_cost_ratio, '高价词占比')
 
-    # 3) 跳出率分布
+    # 3) 跳出率分布（改-9: industry_score）
     bounce = eff['跳出率'].dropna() if '跳出率' in eff.columns else pd.Series()
     if len(bounce) > 0:
         avg_bounce = bounce.mean()
-        bounce_score, _, _ = min_max_score([avg_bounce], ideal_low=True)
         indicators['跳出率均值'] = round(avg_bounce, 4)
-        indicators['跳出率评分'] = round(bounce_score[0], 1)
+        indicators['跳出率评分'] = industry_score(avg_bounce, '跳出率均值')
 
-        # 高跳出词占比 > 0.9
+        # 高跳出词占比 > 0.9（改-9: industry_score）
         high_bounce_ratio = (bounce > 0.9).mean()
-        hb_score, _, _ = min_max_score([high_bounce_ratio], ideal_low=True)
         indicators['高跳出词占比'] = round(high_bounce_ratio, 4)
-        indicators['高跳出评分'] = round(hb_score[0], 1)
+        indicators['高跳出评分'] = industry_score(high_bounce_ratio, '高跳出词占比')
 
-    # 4) 平均访问时长
+    # 4) 平均访问时长（改-9: industry_score）
     if '平均访问时长_秒' in eff.columns:
         dur = eff['平均访问时长_秒'].dropna()
         if len(dur) > 0:
             avg_dur = dur.mean()
-            dur_score, _, _ = min_max_score([avg_dur], ideal_low=False)
             indicators['平均访问时长_秒'] = round(avg_dur, 1)
-            indicators['访问时长评分'] = round(dur_score[0], 1)
+            indicators['访问时长评分'] = industry_score(avg_dur, '访问时长_秒')
 
-    # 5) 长尾分布集中度（前20%消费占比）
+    # 5) 长尾分布集中度（前20%消费占比）（改-9: industry_score）
     cons = eff['消费额'].sort_values(ascending=False).values
     cumsum = np.cumsum(cons)
     total = cumsum[-1]
     top20 = cumsum[max(int(len(cons) * 0.2) - 1, 0)] / total
-
-    # 改-2: 百分位 + Z-Score 双轨评分（替代原 conc_score）
-    # 构造同维度参考分布：所有方案的"前20%消费占比"作为参考
-    ref_series = pd.Series([top20])  # 仅当前值，参考分布用 [0,1] 通用
     indicators['前20%消费占比'] = round(top20, 4)
-    indicators['集中度评分'] = round(percentile_zscore_score(
-        top20, ref_series, ideal_low=False, p_lo=0.25, p_hi=0.75
-    ), 1)
+    indicators['集中度评分'] = industry_score(top20, '前20消费占比')
 
     # 综合得分
     score_list = [
@@ -299,14 +367,10 @@ def score_bid_strategy(data):
     indicators['CPC变异系数'] = round(cv, 3)
     indicators['CPC稳定性评分'] = round(cv_score, 1)
 
-    # 2) 上方位竞价渗透率
+    # 2) 上方位竞价渗透率（改-9: industry_score 替代单值 percentile_zscore）
     top_consume_ratio = dfc['上方位消费额'].sum() / dfc['消费额'].sum()
     indicators['上方位消费占比'] = round(top_consume_ratio, 4)
-    # 改-2: 百分位 + Z-Score 双轨评分（替代原 ratio_score）
-    indicators['上方位渗透评分'] = round(percentile_zscore_score(
-        top_consume_ratio, pd.Series([top_consume_ratio]),
-        ideal_low=False, p_lo=0.25, p_hi=0.75
-    ), 1)
+    indicators['上方位渗透评分'] = industry_score(top_consume_ratio, '上方位消费占比')
 
     # 3) 预算使用节奏（月度CV）
     daily['月份'] = daily['日期'].dt.to_period('M')
