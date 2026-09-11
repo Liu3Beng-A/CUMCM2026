@@ -371,7 +371,8 @@ def fig_score_breakdown(result):
     scores = [result['dimensions'][c]['score'] for c in cats]
 
     fig, ax = plt.subplots(figsize=(10, 6))
-    colors = [COLORS['success'] if s >= 70 else (COLORS['accent'] if s >= 55 else COLORS['danger'])
+    # 颜色映射：评级阈值 A≥85 / B70-84 / C60-69 / D50-59 / E<50
+    colors = [COLORS['success'] if s >= 70 else (COLORS['accent'] if s >= 50 else COLORS['danger'])
               for s in scores]
     bars = ax.barh(cats, scores, color=colors, edgecolor='black', linewidth=1.5)
 
@@ -379,7 +380,8 @@ def fig_score_breakdown(result):
         ax.text(bar.get_width() + 1, bar.get_y() + bar.get_height()/2,
                 f'{s:.1f}', va='center', fontsize=12, fontweight='bold')
 
-    ax.axvline(60, color='gray', linestyle='--', alpha=0.5, label='及格线(60)')
+    ax.axvline(60, color='gray', linestyle='--', alpha=0.5, label='C/D 阈值线(60)')
+    ax.axvline(50, color='red',  linestyle=':', alpha=0.5, label='D/E 阈值线(50)')
     ax.set_xlim(0, 110)
     ax.set_xlabel('评分(0-100)')
     ax.set_title(f'问题 1：综合评分总览 ({result["overall_score"]} 分 / {result["grade"]})')

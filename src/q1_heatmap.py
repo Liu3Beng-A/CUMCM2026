@@ -104,10 +104,10 @@ def fig_heatmap():
     cbar = fig.colorbar(im, ax=ax, fraction=0.04, pad=0.03)
     cbar.set_label('评分 (0-100)', fontsize=11)
 
-    # 6) 底部综合分横条
+    # 6) 底部综合分横条（颜色按 A≥85/B70-84/C60-69/D50-59/E<50 阈值映射）
     ax2 = fig.add_subplot(gs[1])
     bar_colors = [COLORS['success'] if s >= 70 else
-                  (COLORS['accent'] if s >= 55 else COLORS['danger'])
+                  (COLORS['accent'] if s >= 50 else COLORS['danger'])
                   for s in overall_sorted]
     bars = ax2.barh(range(len(plan_ids_sorted)), overall_sorted,
                     color=bar_colors, edgecolor='black', linewidth=1.2)
@@ -116,7 +116,8 @@ def fig_heatmap():
     ax2.invert_yaxis()
     ax2.set_xlabel('综合评分（CRITIC 70:30 混合）', fontsize=11)
     ax2.set_xlim(0, 100)
-    ax2.axvline(60, color='gray', linestyle='--', alpha=0.5, label='及格线 60')
+    ax2.axvline(60, color='gray', linestyle='--', alpha=0.5, label='C/D 阈值线(60)')
+    ax2.axvline(50, color='red',  linestyle=':', alpha=0.5, label='D/E 阈值线(50)')
     for bar, s in zip(bars, overall_sorted):
         ax2.text(bar.get_width() + 1, bar.get_y() + bar.get_height()/2,
                  f'{s:.1f}', va='center', fontsize=11, fontweight='bold')

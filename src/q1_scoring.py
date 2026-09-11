@@ -591,15 +591,17 @@ def run_scoring():
         mixed_weights['投放策略与时间']   * s4['综合评分']
     )
 
-    # 评级
+    # 评级（统一阈值：A≥85 / B70-84 / C60-69 / D50-59 / E<50；与 paper.md 附录 D 一致）
     if overall >= 85:
         grade = 'A (优秀)'
     elif overall >= 70:
         grade = 'B (良好)'
-    elif overall >= 55:
+    elif overall >= 60:
         grade = 'C (一般)'
+    elif overall >= 50:
+        grade = 'D (偏差)'
     else:
-        grade = 'D (需改进)'
+        grade = 'E (差)'
 
     result = {
         'overall_score': round(overall, 1),
