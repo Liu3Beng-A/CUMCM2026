@@ -179,7 +179,9 @@ def time_split_validation():
         ax.annotate(row['节日'], (pd.to_datetime(row['日期']), ax.get_ylim()[1] * 0.95),
                    fontsize=8, rotation=45)
 
-    ax.set_title('策略 A：时间切分验证 - 7-12月消费额 实际 vs 预测', fontsize=12)
+    ax.set_title('策略 A：时间切分验证 - 7-12月消费额 实际 vs 预测\n'
+                 '（注：Prophet 仅用 1-6 月训练，未建模节假日/购物节 → 节日预测偏低，购物节预测偏高）',
+                 fontsize=11)
     ax.set_xlabel('日期')
     ax.set_ylabel('消费额（元）')
     ax.legend()
@@ -195,7 +197,7 @@ def time_split_validation():
                    color=COLORS['accent'], alpha=0.7)
     ax.set_xticks(x)
     ax.set_xticklabels(monthly['月份_str'])
-    ax.set_title('策略 A：月度消费额 实际 vs 预测', fontsize=12)
+    ax.set_title('策略 A：月度消费额 实际 vs 预测（偏差大反映 Prophet 未建模节假日）', fontsize=11)
     ax.set_xlabel('月份')
     ax.set_ylabel('消费额（元）')
     ax.legend()
@@ -329,7 +331,7 @@ def loo_cross_validation():
     colors = plt.cm.Set1(np.linspace(0, 1, len(plan_ids)))
     for i, (_, row) in enumerate(results_df.iterrows()):
         ax.scatter(row['实际排名'], row['预测排名'], s=150, c=[colors[i]],
-                  label=f'方案 {row["剔除方案"]}', edgecolors='black', linewidth=1)
+                  label=f'方案 {int(row["剔除方案"])}', edgecolors='black', linewidth=1)
         ax.annotate(str(int(row['剔除方案'])),
                    (row['实际排名'], row['预测排名']),
                    fontsize=9, ha='left', va='bottom')
@@ -347,6 +349,18 @@ def loo_cross_validation():
     ax.grid(True, alpha=0.3)
     ax.legend(loc='upper left', fontsize=9)
     ax.set_aspect('equal')
+
+    # 关键 caveat：预测综合分绝对值不可信（仅排名可信）
+    pred_min = results_df['预测综合分'].min()
+    pred_max = results_df['预测综合分'].max()
+    caveat_text = (f'注意：Spearman 仅衡量排名一致性\n'
+                   f'预测综合分绝对值不可信（区间 {pred_min:.0f} ~ {pred_max:.0f}）\n'
+                   f'因归一化至训练集，剔除低分方案时预测分\n'
+                   f'会偏离原始尺度（如 -435）')
+    ax.text(0.98, 0.02, caveat_text, transform=ax.transAxes,
+            fontsize=8, verticalalignment='bottom', horizontalalignment='right',
+            bbox=dict(boxstyle='round,pad=0.4', facecolor='#FFF4E5',
+                      edgecolor='#FF9800', alpha=0.9))
 
     fig.suptitle(q1_title('跨数据集泛化性 - 策略 B：留一方案交叉验证'),
                  fontsize=14, fontweight='bold')

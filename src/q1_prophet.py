@@ -111,7 +111,9 @@ def decompose_series(daily_series, value_col, title='消费额', suffix=''):
     ax.fill_between(compare['日期'], forecast['yhat_lower'], forecast['yhat_upper'],
                     color=COLORS['accent'], alpha=0.15, label='95% 置信区间')
     ax.set_title(f'(a) {title} 实际 vs 预测 vs 反事实模拟', fontsize=12)
-    ax.set_ylabel(value_col)
+    # 改-4: Y 轴补单位（统一使用 value_col 已含单位的版本）
+    ylabel_with_unit = title if title != '消费额' else '消费额（元）'
+    ax.set_ylabel(ylabel_with_unit)
     ax.legend(loc='upper left', fontsize=9)
     ax.grid(True, alpha=0.3)
 
@@ -135,7 +137,7 @@ def decompose_series(daily_series, value_col, title='消费额', suffix=''):
            width=1.5)
     ax.axhline(0, color='black', linewidth=0.5)
     ax.set_title('(c) 每日节日贡献 = 实际 - 无假日预测', fontsize=12)
-    ax.set_ylabel('增量')
+    ax.set_ylabel('节日贡献（元）' if value_col == '总消费额' else '节日贡献（人）')
     ax.grid(True, alpha=0.3)
 
     # (4) 残差
@@ -144,7 +146,7 @@ def decompose_series(daily_series, value_col, title='消费额', suffix=''):
     ax.plot(compare['日期'], resid, linewidth=0.8)
     ax.axhline(0, color='red', linestyle='--', alpha=0.5)
     ax.set_title('(d) 残差 = 实际 - 正常预测', fontsize=12)
-    ax.set_ylabel('残差')
+    ax.set_ylabel('残差（元）' if value_col == '总消费额' else '残差（人）')
     ax.grid(True, alpha=0.3)
 
     fig.suptitle(f'问题 1：{title}时间序列分解与假日反事实分析', fontsize=14, fontweight='bold')
@@ -201,8 +203,8 @@ def holiday_box_plot(data):
     fig, axes = plt.subplots(1, 2, figsize=(13, 5))
 
     for ax, col, title in zip(axes, ['总消费额', '新注册数'],
-                              ['(a) 节假日 vs 工作日 消费额分布',
-                               '(b) 节假日 vs 工作日 注册量分布']):
+                              ['(a) 节假日 / 工作日 / 周末 消费额分布',
+                               '(b) 节假日 / 工作日 / 周末 注册量分布']):
         data_to_plot = [
             festival[col].dropna(),
             normal[col].dropna(),

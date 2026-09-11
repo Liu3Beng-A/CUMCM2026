@@ -73,13 +73,27 @@ def fig_design_quality(data):
     ax = axes[1, 1]
     plan_total['上方位CTR'] = plan_total['上方位点击量'] / plan_total['上方位展现量'].replace(0, np.nan)
     plan_total['上方位CPC'] = plan_total['上方位消费额'] / plan_total['上方位点击量'].replace(0, np.nan)
-    ax.scatter(plan_total['CPC'], plan_total['上方位CTR'], s=plan_total['消费额']/5000, alpha=0.6, color=COLORS['primary'])
+    # 改-7: 圆面积归一化，让大小差异更明显（min-max 归一化 + sqrt 缩放）
+    cost_min = plan_total['消费额'].min()
+    cost_max = plan_total['消费额'].max()
+    cost_norm = (plan_total['消费额'] - cost_min) / (cost_max - cost_min)
+    sizes = 60 + 800 * cost_norm  # 范围 60~860，6.4× 差异
+    ax.scatter(plan_total['CPC'], plan_total['上方位CTR'], s=sizes, alpha=0.6,
+               color=COLORS['primary'], edgecolors='black', linewidth=0.8)
     for _, row in plan_total.iterrows():
         ax.annotate(str(int(row['方案ID'])), (row['CPC'], row['上方位CTR']), fontsize=9)
+    # 改-7: 加 size 图例
+    for frac, lab in [(0.0, f'{cost_min/1e4:.1f}万'),
+                       (0.5, f'{(cost_min + (cost_max-cost_min)*0.5)/1e4:.1f}万'),
+                       (1.0, f'{cost_max/1e4:.1f}万')]:
+        s_leg = 60 + 800 * frac
+        ax.scatter([], [], s=s_leg, color=COLORS['primary'], alpha=0.6,
+                   edgecolors='black', linewidth=0.8, label=f'消费额 {lab}')
     ax.set_xlabel('CPC（元）')
     ax.set_ylabel('上方位CTR')
-    ax.set_title('(d) 各方案出价-效益地图（圆=消费额）')
+    ax.set_title('(d) 各方案出价-效益地图（圆面积=消费额）')
     ax.grid(True, alpha=0.3)
+    ax.legend(loc='upper right', fontsize=8, scatterpoints=1)
 
     fig.suptitle('问题 1：设计质量与创意分析', fontsize=14, fontweight='bold')
     fig.tight_layout()
@@ -114,19 +128,27 @@ def fig_keyword_management(data):
     ax2 = ax.twinx()
     ax.bar(range(len(eff_sorted)), eff_sorted['消费额'],
            color=COLORS['primary'], alpha=0.6, label='各关键词消费额')
-    ax2.plot(range(len(eff_sorted)), cum, color=COLORS['danger'], linewidth=1.5, label='累计占比')
-    ax2.axhline(0.8, color='gray', linestyle='--', alpha=0.5)
-    ax2.axhline(0.5, color='gray', linestyle='--', alpha=0.5)
-    idx80 = (cum >= 0.8).idxmax()
+    ax2.plot(range(len(eff_sorted)), cum, color=COLORS['danger'], linewidth=2, label='累计占比')
+    # 改-7: 更明显的 80% 阈值线 + 头 20% 关键词区域高亮
     idx20 = int(len(eff_sorted) * 0.2)
-    ax2.annotate(f'前{idx20}个词({idx20/len(eff_sorted)*100:.1f}%)\n占{cum.iloc[idx20]*100:.1f}%消费',
-                 (idx20, cum.iloc[idx20]), xytext=(idx20+50, 0.9),
-                 arrowprops=dict(arrowstyle='->', color='black'))
-    ax.set_title('(b) 关键词消费分布的帕累托分析')
+    cum_at_20 = cum.iloc[idx20]
+    ax.axvspan(0, idx20, alpha=0.15, color=COLORS['success'],
+               label=f'头20%关键词({idx20}词)')
+    ax2.axhline(0.8, color='red', linestyle='--', linewidth=2, alpha=0.7, label='80%阈值')
+    ax2.axhline(cum_at_20, color='green', linestyle=':', linewidth=2, alpha=0.7,
+                label=f'头20%累计={cum_at_20*100:.1f}%')
+    ax2.annotate(f'前{idx20}个词({idx20/len(eff_sorted)*100:.1f}%)\n占{cum_at_20*100:.1f}%消费',
+                 (idx20, cum_at_20), xytext=(idx20+50, 0.95),
+                 arrowprops=dict(arrowstyle='->', color='black', lw=1.5),
+                 fontsize=10, fontweight='bold',
+                 bbox=dict(boxstyle='round,pad=0.3', facecolor='white', edgecolor='black', alpha=0.9))
+    ax.set_title('(b) 关键词消费分布的帕累托分析（头20%用绿色高亮）')
     ax.set_xlabel('关键词（按消费降序）')
     ax.set_ylabel('消费额（元）', color=COLORS['primary'])
     ax2.set_ylabel('累计占比', color=COLORS['danger'])
     ax.grid(True, alpha=0.3)
+    ax.legend(loc='upper left', fontsize=8)
+    ax2.legend(loc='center right', fontsize=8)
 
     # (c) 跳出率分布 + 平均访问时长
     ax = axes[1, 0]
@@ -298,14 +320,25 @@ def fig_time_pattern(data):
     ax = axes[1, 0]
     plot_data = daily.dropna(subset=['注册转化率', 'CPC']).copy()
     plot_data = plot_data[plot_data['CPC'] < 10]
+    # 修复（2026-09-12）：将日期转为距首日的天数（int），
+    # 避免 matplotlib 把 pandas datetime64[ns] 当纳秒时间戳显示成 1e15 量级。
+    plot_data = plot_data.sort_values('日期').reset_index(drop=True)
+    plot_data['day_idx'] = np.arange(len(plot_data), dtype=float)
     scatter = ax.scatter(plot_data['CPC'], plot_data['注册转化率'],
-                         s=plot_data['总消费额']/100, alpha=0.5, c=plot_data['日期'],
+                         s=plot_data['总消费额']/100, alpha=0.5, c=plot_data['day_idx'],
                          cmap='viridis', edgecolors='white', linewidth=0.5)
     ax.set_xlabel('CPC(元)')
     ax.set_ylabel('注册转化率')
-    ax.set_title('(c) 注册转化率 vs CPC（圆=消费额）')
+    ax.set_title('(c) 注册转化率 vs CPC（圆=消费额，颜色由蓝→黄表示 1-12 月）')
     ax.grid(True, alpha=0.3)
-    plt.colorbar(scatter, ax=ax, label='日期')
+    cbar = plt.colorbar(scatter, ax=ax)
+    cbar.set_label('距起始日的天数', fontsize=10)
+    # 仅在色条上显示首/末日期作为锚点，避免 1e15 量级的误导
+    n_ticks = 5
+    tick_positions = np.linspace(0, len(plot_data) - 1, n_ticks)
+    cbar.set_ticks(tick_positions)
+    cbar.set_ticklabels([plot_data['日期'].iloc[int(p)].strftime('%Y-%m-%d')
+                         for p in tick_positions])
 
     # (d) 月度注册量增长
     ax = axes[1, 1]
@@ -384,7 +417,9 @@ def fig_score_breakdown(result):
     ax.axvline(50, color='red',  linestyle=':', alpha=0.5, label='D/E 阈值线(50)')
     ax.set_xlim(0, 110)
     ax.set_xlabel('评分(0-100)')
-    ax.set_title(f'问题 1：综合评分总览 ({result["overall_score"]} 分 / {result["grade"]})')
+    ax.set_title(f'问题 1：4 维度评分明细（综合分 {result["overall_score"]} / {result["grade"]}）\n'
+                 f'注：横条为一级维度评分；综合分另由 CRITIC+业务 70:30 混合权重加权所得',
+                 fontsize=12)
     ax.legend()
     ax.grid(True, alpha=0.3)
 

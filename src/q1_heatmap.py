@@ -123,7 +123,9 @@ def fig_heatmap():
                  f'{s:.1f}', va='center', fontsize=11, fontweight='bold')
     ax2.legend(loc='lower right')
     ax2.grid(True, alpha=0.3, axis='x')
-    ax2.set_title('方案综合得分（已含 Bootstrap 节日扣分）', fontsize=11)
+    # 修正口径：底部条展示的是扣分前综合分（与上方热力图保持一致），
+    # 扣分后综合分见 q1_penalty_compare.png。
+    ax2.set_title('方案综合得分（扣分前；扣分后对比见 q1_penalty_compare.png）', fontsize=11)
 
     save_fig(fig, 'q1_heatmap')
     plt.close(fig)
@@ -168,9 +170,18 @@ def _fig_penalty_compare(plan_ids_sorted, score_mat, dims, mixed_w, result, diag
     for bar, v in zip(bars1, overall_before):
         ax.text(bar.get_width() + 0.5, bar.get_y() + bar.get_height()/2,
                 f'{v:.1f}', va='center', fontsize=10)
+    # 修复（2026-09-12）：扣分后条形较短，白色文字放在条形外、白底上不可见。
+    # 改为深色文字放在条形内部，确保 57.28 / 56.60 / 55.26 / 51.08 / 33.23 都能看清。
     for bar, v in zip(bars2, overall_after):
-        ax.text(bar.get_width() + 0.5, bar.get_y() + bar.get_height()/2,
-                f'{v:.1f}', va='center', fontsize=10, color='white', fontweight='bold')
+        # 文字放在条形内（右端偏左 2 单位），用白色加粗；如条形太短则外置深色文字
+        if bar.get_width() > 8:
+            ax.text(bar.get_width() - 1.5, bar.get_y() + bar.get_height()/2,
+                    f'{v:.1f}', va='center', ha='right', fontsize=10,
+                    color='white', fontweight='bold')
+        else:
+            ax.text(bar.get_width() + 0.5, bar.get_y() + bar.get_height()/2,
+                    f'{v:.1f}', va='center', fontsize=10,
+                    color=COLORS['danger'], fontweight='bold')
 
     ax.set_yticks(y)
     ax.set_yticklabels([f'方案 {pid}' for pid in plan_ids_sorted], fontsize=11)

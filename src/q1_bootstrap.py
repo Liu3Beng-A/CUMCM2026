@@ -144,7 +144,8 @@ def _bootstrap_one_holiday(daily_series, value_col, holiday_date_str,
     }
 
 
-def run_bootstrap(n_boot=200, n_holidays=None, value_cols=('总消费额', '新注册数')):
+def run_bootstrap(n_boot=200, n_holidays=None, value_cols=('总消费额', '新注册数'),
+                   csv_path=None, replot_only=False):
     """主入口：跑所有节日的 Bootstrap
 
     Parameters
@@ -153,7 +154,20 @@ def run_bootstrap(n_boot=200, n_holidays=None, value_cols=('总消费额', '新�
         - None: 跑全部 37 个节日
         - int: 跑前 N 个代表性节日（按业务重要性）
         - list: 指定的 [(date_str, name), ...] 节日列表
+    csv_path : str or None
+        - 已有 csv 时直接读取，跳过抽样阶段
+    replot_only : bool
+        - True: 只重画图（必须先有 csv）
     """
+    out_csv = csv_path or os.path.join(TABLES_DIR, 'q1_bootstrap_ci.csv')
+
+    # 改-8: replot_only 模式：跳过抽样，直接读 csv 出图
+    if replot_only:
+        df = pd.read_csv(out_csv, encoding='utf-8-sig')
+        nb = int(df['n_boot_target'].iloc[0]) if 'n_boot_target' in df.columns and len(df) > 0 else 0
+        print(f'[replot-only] 读 csv: {out_csv} ({len(df)} 行, n_boot={nb})', flush=True)
+        return _plot_bootstrap_ci(df, n_boot=nb)
+
     print('[bootstrap] 加载数据...', flush=True)
     data = build_q1_data()
     daily = data['daily_full']
@@ -185,28 +199,7 @@ def run_bootstrap(n_boot=200, n_holidays=None, value_cols=('总消费额', '新�
     df.to_csv(out_csv, index=False, encoding='utf-8-sig')
     print(f'\n[save] {out_csv}', flush=True)
 
-    # 画图：每个节日的均值差 + 置信区间
-    plt = apply_style()
-    fig, axes = plt.subplots(1, 2, figsize=(15, 6), sharey=False)
-
-    for ax, vc in zip(axes, value_cols):
-        sub = df[df['指标'] == vc].sort_values('均值差')
-        x = np.arange(len(sub))
-        ax.errorbar(sub['均值差'], x,
-                    xerr=[sub['均值差'] - sub['CI下限(2.5%)'], sub['CI上限(97.5%)'] - sub['均值差']],
-                    fmt='o', color=COLORS['primary'], ecolor=COLORS['secondary'], capsize=3)
-        ax.axvline(0, color='red', linestyle='--', alpha=0.5, label='零线')
-        ax.set_yticks(x)
-        ax.set_yticklabels([f'{r["节日"]} {r["日期"]}' for _, r in sub.iterrows()], fontsize=7)
-        ax.set_title(f'{vc}：节日贡献 Bootstrap 95% CI (n={n_boot})', fontsize=11)
-        ax.set_xlabel('节日效应差值（带-无）')
-        ax.grid(True, alpha=0.3)
-        ax.legend()
-
-    fig.suptitle('问题 1：节日效应 Bootstrap 显著性检验', fontsize=13, fontweight='bold')
-    fig.tight_layout()
-    save_fig(fig, 'q1_bootstrap_ci', subdir='results')
-    plt.close(fig)
+    _plot_bootstrap_ci(df, n_boot=n_boot, value_cols=value_cols)
 
     # 汇总
     print('\n=== Bootstrap 汇总 ===', flush=True)
@@ -217,7 +210,68 @@ def run_bootstrap(n_boot=200, n_holidays=None, value_cols=('总消费额', '新�
     return df
 
 
+def _plot_bootstrap_ci(df, n_boot=100, value_cols=('总消费额', '新注册数')):
+    """改-8: 单独的绘图函数（可被 replot_only 复用）"""
+    plt = apply_style()
+    fig, axes = plt.subplots(1, 2, figsize=(15, 6), sharey=False)
+
+    SHOPPING_DATES = set(d for d, n in ALL_HOLIDAYS if n == '购物节')
+
+    for ax, vc in zip(axes, value_cols):
+        sub = df[df['指标'] == vc].sort_values('均值差').reset_index(drop=True)
+        x = np.arange(len(sub))
+
+        colors = [COLORS['primary'] if r['日期'] not in SHOPPING_DATES
+                  else COLORS['accent'] for _, r in sub.iterrows()]
+        sig_vals = set(sub[sub['p值(双侧)'] < 0.05]['均值差'].values)
+
+        ax.errorbar(sub['均值差'], x,
+                    xerr=[sub['均值差'] - sub['CI下限(2.5%)'], sub['CI上限(97.5%)'] - sub['均值差']],
+                    fmt='o', color=COLORS['primary'], ecolor=COLORS['secondary'],
+                    capsize=3, markersize=5)
+        for xi, (yi, c) in enumerate(zip(sub['均值差'], colors)):
+            is_sig = sub.iloc[xi]['p值(双侧)'] < 0.05
+            ax.scatter(yi, xi, color=c,
+                       s=70 if is_sig else 40,
+                       edgecolors='black' if is_sig else 'none',
+                       linewidths=1.2, zorder=5)
+
+        ax.axvline(0, color='red', linestyle='--', alpha=0.5, label='零线')
+
+        labels = []
+        for _, r in sub.iterrows():
+            tag = '*' if r['p值(双侧)'] < 0.05 else ''
+            if r['日期'] in SHOPPING_DATES:
+                labels.append(f'{r["日期"][5:]} {tag}')
+            else:
+                labels.append(f'{r["节日"]} {r["日期"][5:]} {tag}')
+        ax.set_yticks(x)
+        ax.set_yticklabels(labels, fontsize=8)
+
+        ax.set_title(f'{vc}：节日贡献 Bootstrap 95% CI (n={n_boot})\n'
+                     f'蓝色=法定 / 橙色=购物 / * = p<0.05 显著',
+                     fontsize=10)
+        ax.set_xlabel('节日效应差值（带-无）')
+        ax.grid(True, alpha=0.3)
+        ax.legend(loc='lower right', fontsize=8)
+
+    fig.suptitle('问题 1：节日效应 Bootstrap 显著性检验（按节日类型分组着色）',
+                 fontsize=13, fontweight='bold')
+    fig.tight_layout()
+    save_fig(fig, 'q1_bootstrap_ci', subdir='results')
+    plt.close(fig)
+    return df
+
+
 if __name__ == '__main__':
     import sys as _sys
-    n_boot = int(_sys.argv[1]) if len(_sys.argv) > 1 else 200
-    run_bootstrap(n_boot=n_boot, n_holidays=None)
+    # 用法：
+    #   python -m src.q1_bootstrap            # 跑抽样 + 出图（n_boot=200）
+    #   python -m src.q1_bootstrap 100        # 自定义 n_boot
+    #   python -m src.q1_bootstrap --replot   # 只重画图（读已有 csv）
+    args = _sys.argv[1:]
+    if '--replot' in args:
+        run_bootstrap(replot_only=True)
+    else:
+        n_boot = int(args[0]) if args and not args[0].startswith('--') else 200
+        run_bootstrap(n_boot=n_boot, n_holidays=None)

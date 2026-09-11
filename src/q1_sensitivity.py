@@ -180,12 +180,19 @@ def run_sensitivity(perturb_range=0.20, n_steps=9):
     ax.grid(True, alpha=0.3, axis='x')
     ax.legend(loc='lower right')
 
-    # 在图右上角加排名
+    # 修复（2026-09-12）：显式设置 x 轴下限，给"扰动下限标签"留出 4 个字符的左边距，
+    # 否则像出价策略 69.4 这样的低端值会被裁掉左半标签。
+    x_min = min(bottoms) - 4
+    x_max = max(max(tops), base_overall) + 4
+    ax.set_xlim(x_min, x_max)
+
+    # 在图左上角加排名（修复 2026-09-12：右上角会挡住"出价策略与预算"的右端 68.9 标签）
     rank_text = '\n'.join([f'{i+1}. {lbl} (极差={r:.2f})'
                             for i, (lbl, r) in enumerate(zip(labels[::-1], ranges[::-1]))])
-    ax.text(0.98, 0.97, '敏感性排名（极差）:\n' + rank_text,
-            transform=ax.transAxes, fontsize=9, va='top', ha='right',
-            bbox=dict(boxstyle='round,pad=0.5', facecolor='lightyellow', alpha=0.8))
+    ax.text(0.02, 0.97, '敏感性排名（极差）:\n' + rank_text,
+            transform=ax.transAxes, fontsize=8, va='top', ha='left',
+            bbox=dict(boxstyle='round,pad=0.4', facecolor='lightyellow',
+                      edgecolor='gray', alpha=0.85))
 
     fig.tight_layout()
     save_fig(fig, 'q1_tornado', subdir='results')
