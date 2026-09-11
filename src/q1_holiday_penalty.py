@@ -146,6 +146,32 @@ def apply_penalty_to_score(score_json_path=None):
         for info in result['dimensions'].values()
     )
     result['overall_score'] = round(new_overall, 1)
+
+    # 同步更新 overall_score_breakdown 中"投放策略与时间"的 dimension_score
+    if 'overall_score_breakdown' in result and '投放策略与时间' in result['overall_score_breakdown']:
+        wd = result['overall_score_breakdown']['投放策略与时间']
+        wd['dimension_score'] = round(new_time_score, 1)
+        wd['weighted'] = round(wd['weight_mixed'] * new_time_score, 2)
+        wd['original_dimension_score'] = round(old_time_score, 1)
+        wd['original_weighted'] = round(wd['weight_mixed'] * old_time_score, 2)
+
+    # 同步更新 plan_overall_scores 和 plan_avg_for_reference
+    if 'plan_overall_scores' in result:
+        new_plan_overall = {}
+        for pid_key, sc in result['plan_scores'].items():
+            new_plan_overall[int(pid_key) if not isinstance(pid_key, str) or pid_key.lstrip('-').isdigit() else pid_key] = round(sum(
+                sc[dim] * result['dimensions'][dim]['weight_mixed']
+                for dim in result['dimensions']
+            ), 2)
+        result['plan_overall_scores'] = new_plan_overall
+        result['plan_avg_for_reference'] = round(float(np.mean(list(new_plan_overall.values()))), 2)
+
+    # 更新 plan_scores[pid].综合分
+    if 'plan_overall_scores' in result:
+        for pid_key, sc in result['plan_scores'].items():
+            pid_int = int(pid_key) if (isinstance(pid_key, str) and pid_key.lstrip('-').isdigit()) else (pid_key if isinstance(pid_key, int) else None)
+            if pid_int is not None and pid_int in result['plan_overall_scores']:
+                sc['综合分'] = result['plan_overall_scores'][pid_int]
     # 重算评级
     if new_overall >= 85:   result['grade'] = 'A (优秀)'
     elif new_overall >= 70: result['grade'] = 'B (良好)'

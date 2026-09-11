@@ -603,6 +603,20 @@ def run_scoring():
 
     result = {
         'overall_score': round(overall, 1),
+        'overall_score_method': '按4维度加权平均 (Σ 维度分 × 混合权重)；不等同于 5 方案综合分的算术平均',
+        'overall_score_breakdown': {
+            dim: {
+                'dimension_score': score,
+                'weight_mixed':   mixed_weights[dim],
+                'weighted':       round(mixed_weights[dim] * score, 2),
+            }
+            for dim, score in [
+                ('设计质量与创意',   s1['综合评分']),
+                ('关键词管理与运用', s2['综合评分']),
+                ('出价策略与预算',   s3['综合评分']),
+                ('投放策略与时间',   s4['综合评分']),
+            ]
+        },
         'grade': grade,
         'weights_method': 'CRITIC + 业务混合 70:30',
         'plan_scores': plan_scores.to_dict(orient='index'),  # 新增：每方案 4 维得分
@@ -629,6 +643,16 @@ def run_scoring():
                                'details': s4},
         },
     }
+
+    # 计算每方案加权综合分（用于口径对比）
+    w_arr = np.array([mixed_weights[d] for d in dim_names])
+    plan_overall = (plan_scores.values @ w_arr).round(2)
+    plan_overall_dict = {int(pid): float(s) for pid, s in zip(plan_scores.index, plan_overall)}
+    result['plan_overall_scores'] = plan_overall_dict
+    result['plan_avg_for_reference'] = round(float(np.mean(plan_overall)), 2)
+    # plan_scores 中补一个 '综合分' 字段（to_dict(orient='index') 的 key 是 int）
+    for idx_pos, pid in enumerate(plan_scores.index):
+        result['plan_scores'][int(pid)]['综合分'] = float(plan_overall[idx_pos])
 
     # 保存
     ensure_dir(TABLES_DIR)

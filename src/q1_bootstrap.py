@@ -66,9 +66,15 @@ def _bootstrap_one_holiday(daily_series, value_col, holiday_date_str,
     df = df.sort_values('ds').reset_index(drop=True)
 
     diffs = []
+    fail_a = 0  # 模型 A（含 holidays）失败计数
+    fail_b = 0  # 模型 B（无 holidays）失败计数
+    fail_window = 0  # 窗口期匹配失败计数
+    max_attempts = n_boot * 5  # 最多尝试 5 倍次数，避免无限循环
+    attempts = 0
     n = len(df)
 
-    for b in range(n_boot):
+    while len(diffs) < n_boot and attempts < max_attempts:
+        attempts += 1
         # 有放回重采样
         idx = np.random.choice(n, size=n, replace=True)
         boot = df.iloc[idx].reset_index(drop=True)
@@ -86,6 +92,7 @@ def _bootstrap_one_holiday(daily_series, value_col, holiday_date_str,
             yhat_a = fc_a.set_index('ds')['yhat']
             yhat_a = yhat_a[~yhat_a.index.duplicated(keep='first')]
         except Exception:
+            fail_a += 1
             continue
 
         # 模型 B：无 holidays
@@ -98,6 +105,7 @@ def _bootstrap_one_holiday(daily_series, value_col, holiday_date_str,
             yhat_b = fc_b.set_index('ds')['yhat']
             yhat_b = yhat_b[~yhat_b.index.duplicated(keep='first')]
         except Exception:
+            fail_b += 1
             continue
 
         # 窗口期内的差值
@@ -105,6 +113,7 @@ def _bootstrap_one_holiday(daily_series, value_col, holiday_date_str,
         win_end   = d_holiday + pd.Timedelta(days=window_days)
         mask = (yhat_a.index >= win_start) & (yhat_a.index <= win_end)
         if mask.sum() == 0:
+            fail_window += 1
             continue
         # 实际值：因 boot 有重复日期，先聚合到每天
         boot_daily = boot.groupby('ds')['y'].sum()
@@ -116,6 +125,9 @@ def _bootstrap_one_holiday(daily_series, value_col, holiday_date_str,
     diffs = np.array(diffs)
     if len(diffs) == 0:
         return None
+    if len(diffs) < n_boot:
+        print(f'    [warn] {holiday_name} {holiday_date_str}: 仅 {len(diffs)}/{n_boot} 次成功'
+              f'（失败 A={fail_a}, B={fail_b}, 窗口={fail_window}）', flush=True)
     return {
         '节日':       holiday_name,
         '日期':       holiday_date_str,
@@ -125,7 +137,10 @@ def _bootstrap_one_holiday(daily_series, value_col, holiday_date_str,
         'CI下限(2.5%)':  float(np.percentile(diffs, 2.5)),
         'CI上限(97.5%)': float(np.percentile(diffs, 97.5)),
         'p值(双侧)':  float(2 * min((diffs <= 0).mean(), (diffs >= 0).mean())),
-        'n_boot':     len(diffs),
+        'n_boot_target': n_boot,
+        'n_boot_valid':  len(diffs),
+        'n_boot_fail_a': fail_a,
+        'n_boot_fail_b': fail_b,
     }
 
 

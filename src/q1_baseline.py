@@ -47,7 +47,7 @@ from src.plot_style import apply_style, save_fig, COLORS
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 PLAN_SCORES_CSV = os.path.join(ROOT, 'results', 'tables', 'q1_plan_scores.csv')
 SCORE_JSON      = os.path.join(ROOT, 'results', 'tables', 'q1_score.json')
-OUT_CMP_CSV     = os.path.join(ROOT, 'results', 'tables', 'q1_baseline_comparison.csv')
+OUT_CMP_CSV     = os.path.join(ROOT, 'results', 'tables', 'q1_baseline_comparison_pre_holiday.csv')
 OUT_CORR_CSV    = os.path.join(ROOT, 'results', 'tables', 'q1_baseline_corr.csv')
 OUT_FIG         = os.path.join(ROOT, 'results', 'figures', 'q1_baseline_rank_scatter.png')
 

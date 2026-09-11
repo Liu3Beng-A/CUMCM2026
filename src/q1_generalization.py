@@ -21,6 +21,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import warnings
 warnings.filterwarnings('ignore')
 
+import json
 import matplotlib
 matplotlib.rcParams['font.sans-serif'] = ['SimHei', 'Microsoft YaHei', 'DejaVu Sans']
 matplotlib.rcParams['axes.unicode_minus'] = False
@@ -375,21 +376,25 @@ def bootstrap_generalization(n_bootstrap=100):
 
     对全量数据做 n_bootstrap 次有放回采样，每次计算 CRITIC 权重和综合评分，
     输出：权重 95% CI 和评分 95% CI。
+
+    修复（2026-09-11）：原版用 `0.7*CRITIC + 0.3*SUBJECTIVE_WEIGHTS` 手算混合权重，
+    与 `q1_weights.py` 的归一化顺序不一致，导致基准权重过期。改为直接读取
+    `results/tables/q1_score.json` 中已经算好的 `weight_mixed` / `weight_critic`。
     """
     print(f'\n=== 策略 C：Bootstrap 重采样泛化误差 (n={n_bootstrap}) ===', flush=True)
     data = build_q1_data()
 
-    # 全量 CRITIC 权重（基准）
-    all_plan_scores = _score_per_plan(data)
-    dim_names = list(all_plan_scores.columns)
-    w_critic_full = critic_weights(all_plan_scores.values)
-    weighted_scores_full = all_plan_scores.values @ w_critic_full
+    # 全量 CRITIC 权重（基准）：从最新 q1_score.json 读取，避免手算公式过期
+    score_json_path = os.path.join(TABLES_DIR, 'q1_score.json')
+    with open(score_json_path, 'r', encoding='utf-8') as f:
+        score_data = json.load(f)
+    dim_names = list(score_data['dimensions'].keys())
+    w_critic_full = np.array([score_data['dimensions'][d]['weight_critic'] for d in dim_names])
+    w_mixed = np.array([score_data['dimensions'][d]['weight_mixed']   for d in dim_names])
+    w_mixed = w_mixed / w_mixed.sum()  # 数值归一化（防浮点漂移）
 
-    # 全量综合分（混合权重）
-    w_mixed = 0.7 * w_critic_full + 0.3 * np.array([
-        SUBJECTIVE_WEIGHTS[name] for name in dim_names
-    ])
-    w_mixed = w_mixed / w_mixed.sum()
+    all_plan_scores = _score_per_plan(data)
+    weighted_scores_full = all_plan_scores.values @ w_critic_full
     full_mixed_scores = all_plan_scores.values @ w_mixed
 
     print(f'  基准混合权重: {dict(zip(dim_names, w_mixed.round(4)))}', flush=True)
