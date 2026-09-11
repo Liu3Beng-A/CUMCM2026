@@ -145,6 +145,93 @@ def plot_clusters(dfk, summary, k=3):
     plt.close(fig)
 
 
+def plot_tsne_clusters(dfk, k=3, perplexity=30, random_state=42):
+    """TSNE 降维二维可视化聚类结果
+
+    将多维特征（消费额对数 + 跳出率 + CPC + CTR）通过 TSNE 降到 2D，
+    按聚类标签着色，便于直观看出"高维不可分 vs 低维可分"的差异。
+
+    Parameters
+    ----------
+    dfk : pd.DataFrame
+        包含 cluster 列的关键词数据
+    k : int
+        聚类数
+    perplexity : float
+        TSNE 困惑度（默认 30，适合中等规模数据）
+    random_state : int
+        随机种子（保证可复现）
+    """
+    from sklearn.manifold import TSNE
+
+    # 准备 4 维特征
+    features = np.column_stack([
+        np.log1p(dfk['消费额'].fillna(0).values),
+        dfk['跳出率'].fillna(0).values,
+        dfk['CPC'].fillna(0).values,
+        dfk['CTR'].fillna(0).values,
+    ])
+
+    # 标准化
+    scaler = StandardScaler()
+    features_scaled = scaler.fit_transform(features)
+
+    print(f'[tsne] 输入特征维度: {features_scaled.shape}, perplexity={perplexity}', flush=True)
+
+    # TSNE 降维
+    tsne = TSNE(n_components=2, perplexity=perplexity,
+                random_state=random_state, max_iter=1000)
+    embedding = tsne.fit_transform(features_scaled)
+    print(f'[tsne] 输出嵌入维度: {embedding.shape}', flush=True)
+
+    # 画图
+    plt = apply_style()
+    fig, ax = plt.subplots(figsize=(11, 8))
+
+    colors = [COLORS['success'], COLORS['accent'], COLORS['danger'],
+              COLORS['secondary'], COLORS['primary']]
+    labels_map = {
+        0: '低跳出-优质词',
+        1: '中跳出-正常词',
+        2: '高跳出-待优化词',
+    }
+
+    for i in range(k):
+        mask = dfk['cluster'].values == i
+        if mask.sum() == 0:
+            continue
+        ax.scatter(embedding[mask, 0], embedding[mask, 1],
+                   c=colors[i % len(colors)], alpha=0.5, s=18,
+                   label=f'{labels_map.get(i, f"聚类{i}")} (n={mask.sum()})',
+                   edgecolors='black', linewidths=0.2)
+
+    ax.set_xlabel('TSNE-1', fontsize=11)
+    ax.set_ylabel('TSNE-2', fontsize=11)
+    ax.set_title(f'问题 1：关键词聚类 TSNE 降维可视化（k={k}, perplexity={perplexity}）',
+                 fontsize=13, fontweight='bold')
+    ax.legend(loc='best', fontsize=10, framealpha=0.9)
+    ax.grid(True, alpha=0.3)
+
+    # 在右下角加方法说明
+    method_text = (
+        '方法说明：\n'
+        f'· 4 维特征 = log(消费+1) + 跳出率 + CPC + CTR\n'
+        f'· StandardScaler 标准化\n'
+        f'· TSNE (perplexity={perplexity}, max_iter=1000)\n'
+        f'· 随机种子 = {random_state}（保证可复现）'
+    )
+    ax.text(0.98, 0.02, method_text,
+            transform=ax.transAxes, fontsize=8.5,
+            verticalalignment='bottom', horizontalalignment='right',
+            bbox=dict(boxstyle='round,pad=0.5', facecolor='#FFFFE0',
+                      edgecolor='gray', alpha=0.85))
+
+    fig.tight_layout()
+    save_fig(fig, 'q1_bounce_tsne', subdir='results')
+    plt.close(fig)
+    print('[tsne] 已保存 q1_bounce_tsne.png', flush=True)
+
+
 def generate_text_interpretation(summary):
     """生成论文段落文字"""
     total_kw = summary['关键词数'].sum()
@@ -202,6 +289,9 @@ def run_bounce_cluster(k=3):
 
     # 绘图
     plot_clusters(dfk, summary, k=k)
+
+    # 新增：TSNE 降维可视化
+    plot_tsne_clusters(dfk, k=k)
 
     # 文字稿
     text = generate_text_interpretation(summary)

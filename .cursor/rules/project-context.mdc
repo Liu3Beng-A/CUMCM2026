@@ -1,0 +1,223 @@
+---
+description: CUMCM 2026 E 题项目事实索引——路径、算法、方案、数据规模、运行命令；纯事实，不含评价
+globs:
+alwaysApply: true
+---
+
+# CUMCM 2026 E 题 · SEM 广告投放策略优化 · 项目事实索引
+
+> 本文件是本仓库的事实清单：文件在哪、用了什么算法/方案、数据是多少、怎么运行。
+> 不含评价、评级、原因、边界、建议。
+
+---
+
+## 1. 项目
+
+- **题目**：2026 CUMCM E 题（SEM 广告投放策略合理性）
+- **数据范围**：2025-01-01 ~ 2025-12-31（365 天）
+- **数据来源**：`data/raw/attachments/附件1.xlsx`
+- **当前问题**：Q1（综合评分 + 4 维度）
+- **综合分（Q1）**：56.0 / 100
+- **加权综合分（扣节日前）**：65.3 / 100
+
+---
+
+## 2. 题面与原始数据
+
+| 资源 | 路径 |
+|---|---|
+| 题面图 page 1 | `paper/figures/raw_attachments/problem_pages/page_1.png` |
+| 题面图 page 2 | `paper/figures/raw_attachments/problem_pages/page_2.png` |
+| 题面图 page 1（OCR 源） | `paper/figures/raw_attachments/e_images/page_1.png` |
+| 题面图 page 2（OCR 源） | `paper/figures/raw_attachments/e_images/page_2.png` |
+| 附件 1 原始 xlsx | `data/raw/attachments/附件1.xlsx` |
+| 附件 2 目录 | `data/raw/attachments/附件2/` |
+| 处理后聚合 pkl | `data/processed/q1/*.pkl` |
+
+仓库中不含 PDF 文件。题目为图片格式。
+
+---
+
+## 3. 数据规模
+
+| 项 | 值 |
+|---|---|
+| 方案数 | 5 |
+| 推广单元数 | 12 |
+| 关键词数 | 2,227（有效 1,337 / 无效 890；有效率 60.04%） |
+| 全年消费 | 142.59 万元 |
+| 展现 | 22.58M |
+| 点击 | 834,815 |
+| 注册 | 85,313 |
+| 注册转化率（总量口径） | 10.22% |
+| 注册转化率（日均算术平均） | 11.40% |
+
+---
+
+## 4. 仓库框架
+
+```
+CUMCM2026Problems/
+├── data/
+│   ├── raw/attachments/           附件 1/2 原始 xlsx
+│   └── processed/q1/              Q1 聚合 pkl
+├── src/
+│   ├── q1_main.py                 Q1 入口
+│   ├── q1_data_prep.py            数据预处理
+│   ├── q1_scoring.py              评分（CRITIC + 双轨 + 行业阈值）
+│   ├── q1_weights.py              CRITIC + 业务 70:30 权重
+│   ├── q1_baseline.py             4 种方法对比
+│   ├── q1_prophet.py              Prophet 反事实
+│   ├── q1_bootstrap.py            Bootstrap 显著性
+│   ├── q1_sensitivity.py          权重敏感性（龙卷风 + 曲线）
+│   ├── q1_holiday_penalty.py      节日扣分
+│   ├── q1_robustness_aug.py       异常日 (2025-08-21) 鲁棒性
+│   ├── q1_bounce_cluster.py       跳出率 KMeans 聚类
+│   ├── q1_heatmap.py              5×4 热力图
+│   ├── q1_plots.py                主图集合
+│   ├── q1_analysis.py             分析工具
+│   ├── q1_evaluation_scenarios.py 场景评估
+│   ├── q1_generalization.py       泛化验证
+│   ├── plot_style.py              统一绘图风格
+│   ├── font_fix.py                中文字体注册
+│   └── utils.py / config.py / data_loader.py 公共工具
+├── results/
+│   ├── figures/                   q1_*.png
+│   └── tables/                    q1_*.csv / .json
+├── paper/
+│   ├── paper.md                   论文主稿
+│   ├── q1_section_5_1.md          5.1 节文字稿
+│   └── SEM广告投放策略优化_论文框架.docx
+├── notebooks/
+│   └── 01_eda_summary.py          正式 EDA 脚本
+├── issue/
+│   ├── issue_q1.md                Q1 问题理解
+│   └── issue_q1_methods.md        Q1 方法选择对比
+├── evaluation_q1.md               Q1 评估报告
+├── README.md                      总览
+└── .cursor/rules/
+    └── project-context.mdc        本文件
+```
+
+---
+
+## 5. 算法与方案清单
+
+### 5.1 评分链路
+
+| 步骤 | 算法 / 方案 | 输出 |
+|---|---|---|
+| 赋权 | CRITIC + 业务 70:30 混合 | `results/tables/q1_weights.json` |
+| 多方案对比评分 | 百分位 + Z-Score 双轨 | `results/tables/q1_score.json` |
+| 单值绝对评分 | 行业阈值（9 指标表） | `results/tables/q1_score.json` |
+
+### 5.2 假日效应
+
+| 步骤 | 算法 / 方案 | 输出 |
+|---|---|---|
+| 反事实量级 | Prophet 反事实 | `results/figures/q1_prophet_cost.png`、`q1_prophet_reg.png` |
+| 显著性 | Bootstrap（1000 次） | `results/tables/q1_holiday_penalty.json` |
+| 节日扣分 | 春节 / 劳动 / 国庆 各 -15，封顶 -30 | 同上 |
+
+### 5.3 辅助方法
+
+| 算法 / 方案 | 用途 | 输出 |
+|---|---|---|
+| 龙卷风 + 敏感性曲线 | 权重稳健性 | `results/figures/q1_tornado.png`、`q1_sens_curve.png` |
+| 5×4 热力图 | 总览 | `results/figures/q1_heatmap.png` |
+| KMeans 聚类 | 跳出率分组 | `results/tables/q1_bounce_clusters.csv` |
+| 异常日剔除 | 鲁棒性（2025-08-21） | `results/tables/q1_robustness_aug.json` |
+| 4 种方法对比 | 等权 / 熵权 / TOPSIS / CRITIC | `results/figures/q1_baseline_rank_scatter.png` |
+
+---
+
+## 6. 4 维度评分与权重
+
+| 维度 | 评分 | 权重 |
+|---|---|---|
+| 设计质量与创意 | 55.8 / 100 | 22.22% |
+| 关键词管理与运用 | 51.6 / 100 | 14.83% |
+| 出价策略与预算 | 77.6 / 100 | 32.16% |
+| 投放策略与时间 | 65.8 / 100 | 30.79% |
+
+5 个方案最终排名（含扣分）：
+
+| 方案 | 综合分 |
+|---|---|
+| 500635396 | 57.28 |
+| 63563817 | 56.60 |
+| 495403620 | 55.26 |
+| 495817671 | 51.08 |
+| 525368335 | 33.23 |
+
+---
+
+## 7. 4 种方法对比（baseline_rank_scatter 输出）
+
+| 方法 | Pearson | Spearman |
+|---|---|---|
+| 等权平均 | 0.9899 | 0.90 |
+| 熵权法 | 0.9898 | 0.70 |
+| 等权 TOPSIS | 0.9843 | 0.70 |
+| CRITIC（本文） | 1.0000 | 1.00 |
+
+---
+
+## 8. 运行命令
+
+```bash
+# 首次需要预处理（生成 data/processed/q1/*.pkl）
+python -m src.q1_data_prep
+
+# Q1 全流程
+python -m src.q1_main
+
+# 单独模块
+python -m src.q1_scoring          # 评分（CRITIC + 双轨 + 行业阈值）
+python -m src.q1_baseline         # 4 种方法对比
+python -m src.q1_holiday_penalty  # 节日扣分
+python -m src.q1_heatmap          # 5×4 热力图
+python -m src.q1_prophet          # Prophet 反事实
+python -m src.q1_bootstrap        # Bootstrap 显著性
+python -m src.q1_sensitivity      # 权重敏感性
+python -m src.q1_robustness_aug   # 异常值鲁棒性
+python -m src.q1_bounce_cluster   # 跳出率聚类
+python -m src.q1_weights          # CRITIC + 70:30 权重
+```
+
+---
+
+## 9. 文档索引
+
+| 内容 | 路径 |
+|---|---|
+| 总览 | `README.md` |
+| 评估报告 | `evaluation_q1.md` |
+| 论文主稿 | `paper/paper.md` |
+| 5.1 节文字稿 | `paper/q1_section_5_1.md` |
+| Q1 问题理解 | `issue/issue_q1.md` |
+| Q1 方法选择对比 | `issue/issue_q1_methods.md` |
+| 评分结果 | `results/tables/q1_score.json` |
+| 权重结果 | `results/tables/q1_weights.json` |
+| 节日扣分结果 | `results/tables/q1_holiday_penalty.json` |
+
+---
+
+## 10. 文件 connect（事实关联）
+
+- `src/q1_main.py` → 调用 `q1_data_prep`、`q1_scoring`、`q1_weights`、`q1_baseline`、`q1_prophet`、`q1_bootstrap`、`q1_holiday_penalty`、`q1_sensitivity`、`q1_robustness_aug`、`q1_bounce_cluster`、`q1_heatmap`、`q1_plots`
+- `src/q1_data_prep.py` → 读 `data/raw/attachments/附件1.xlsx`，写 `data/processed/q1/*.pkl`
+- `src/q1_weights.py` → 写 `results/tables/q1_weights.json`，被 `q1_scoring.py` 读取
+- `src/q1_scoring.py` → 读 `q1_weights.json`，写 `results/tables/q1_score.json`
+- `src/q1_baseline.py` → 读 `q1_score.json`，写 `results/figures/q1_baseline_rank_scatter.png`
+- `src/q1_prophet.py` → 读 `data/processed/q1/*.pkl`，写 `results/figures/q1_prophet_*.png`
+- `src/q1_bootstrap.py` → 读 `q1_prophet` 输出，写 `results/tables/q1_holiday_penalty.json`
+- `src/q1_holiday_penalty.py` → 读 `q1_score.json` + `q1_holiday_penalty.json`，写最终综合分
+- `src/q1_sensitivity.py` → 读 `q1_weights.json` + `q1_score.json`，写龙卷风 / 敏感性图
+- `src/q1_robustness_aug.py` → 读 `data/processed/q1/daily_full.pkl`，剔除 2025-08-21，重跑评分对比
+- `src/q1_bounce_cluster.py` → 读 `data/processed/q1/keyword_total.pkl`，写聚类结果
+- `src/q1_heatmap.py` → 读 `q1_score.json`，写 5×4 热力图
+
+---
+
+最后更新：2026-09-11
