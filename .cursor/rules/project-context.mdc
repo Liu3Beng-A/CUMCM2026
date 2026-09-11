@@ -19,6 +19,7 @@ alwaysApply: true
 - **当前问题**：Q1（综合评分 + 4 维度）
 - **综合分（Q1）**：56.0 / 100
 - **加权综合分（扣节日前）**：65.3 / 100
+- **节日扣分（按节日聚合）**：春节 -12 / 国庆 -10 / 清明 -4 / 劳动节 -4 = 合计 -30
 
 ---
 
@@ -116,8 +117,8 @@ CUMCM2026Problems/
 | 步骤 | 算法 / 方案 | 输出 |
 |---|---|---|
 | 反事实量级 | Prophet 反事实 | `results/figures/q1_prophet_cost.png`、`q1_prophet_reg.png` |
-| 显著性 | Bootstrap（1000 次） | `results/tables/q1_holiday_penalty.json` |
-| 节日扣分 | 春节 / 劳动 / 国庆 各 -15，封顶 -30 | 同上 |
+| 显著性 | Bootstrap（**全量 37 节日 × 100 次**，n_boot 全部 = 100 无截断） | `results/tables/q1_bootstrap_ci.csv` |
+| 节日扣分 | 按"节日聚合"显著性天数加权（春节 -12 / 国庆 -10 / 清明 -4 / 劳动节 -4，封顶 -30） | 同上 |
 
 ### 5.3 辅助方法
 
@@ -126,7 +127,7 @@ CUMCM2026Problems/
 | 龙卷风 + 敏感性曲线 | 权重稳健性 | `results/figures/q1_tornado.png`、`q1_sens_curve.png` |
 | 5×4 热力图 | 总览 | `results/figures/q1_heatmap.png` |
 | KMeans 聚类 | 跳出率分组 | `results/tables/q1_bounce_clusters.csv` |
-| 异常日剔除 | 鲁棒性（2025-08-21） | `results/tables/q1_robustness_aug.json` |
+| 异常日剔除 | 鲁棒性（2025-08-21，Z-Score=1.69） | `results/tables/q1_robustness_aug.csv`（Prophet）+ `q1_robustness_bootstrap.csv`（CI宽度）+ `q1_robustness_score.csv`（评分） |
 | 4 种方法对比 | 等权 / 熵权 / TOPSIS / CRITIC | `results/figures/q1_baseline_rank_scatter.png` |
 
 ---
@@ -214,7 +215,7 @@ python -m src.q1_weights          # CRITIC + 70:30 权重
 - `src/q1_bootstrap.py` → 读 `q1_prophet` 输出，写 `results/tables/q1_holiday_penalty.json`
 - `src/q1_holiday_penalty.py` → 读 `q1_score.json` + `q1_holiday_penalty.json`，写最终综合分
 - `src/q1_sensitivity.py` → 读 `q1_weights.json` + `q1_score.json`，写龙卷风 / 敏感性图
-- `src/q1_robustness_aug.py` → 读 `data/processed/q1/daily_full.pkl`，剔除 2025-08-21，重跑评分对比
+- `src/q1_robustness_aug.py` → 读 `data/processed/q1/daily_full.pkl`，定位 2025-08-21 异常日（Z=1.69）后剔除，重跑 Prophet / Bootstrap / 评分 三类对比；写 `results/tables/q1_robustness_{aug,bootstrap,score}.csv` + `results/figures/q1_robustness_aug.png`
 - `src/q1_bounce_cluster.py` → 读 `data/processed/q1/keyword_total.pkl`，写聚类结果
 - `src/q1_heatmap.py` → 读 `q1_score.json`，写 5×4 热力图
 
