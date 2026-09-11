@@ -33,7 +33,7 @@ from sklearn.preprocessing import StandardScaler
 
 from src.q1_data_prep import build_q1_data
 from src.utils import FIGURES_DIR, TABLES_DIR, ensure_dir
-from src.plot_style import apply_style, save_fig
+from src.plot_style import apply_style, save_fig, COLORS
 
 
 def cluster_keywords_by_bounce(data, k=3, random_state=42):
@@ -104,7 +104,8 @@ def plot_clusters(dfk, summary, k=3):
 
     # (a) 散点：log消费 × 跳出率，按聚类着色
     ax = axes[0]
-    colors = ['#06A77D', '#F18F01', '#D62246', '#A23B72', '#2E86AB']
+    colors = [COLORS['success'], COLORS['accent'], COLORS['danger'],
+              COLORS['secondary'], COLORS['primary']]
     for i in range(k):
         sub = dfk[dfk['cluster'] == i]
         ax.scatter(sub['消费额'], sub['跳出率'],
@@ -121,23 +122,23 @@ def plot_clusters(dfk, summary, k=3):
     x = np.arange(len(summary))
     width = 0.4
     ax.bar(x - width/2, summary['平均跳出率'], width,
-           color='#A23B72', label='平均跳出率')
-    ax.set_ylabel('平均跳出率', color='#A23B72', fontsize=11)
+           color=COLORS['secondary'], label='平均跳出率')
+    ax.set_ylabel('平均跳出率', color=COLORS['secondary'], fontsize=11)
     ax.set_xticks(x)
     ax.set_xticklabels(summary['业务标签'], fontsize=10, rotation=15)
-    ax.tick_params(axis='y', labelcolor='#A23B72')
+    ax.tick_params(axis='y', labelcolor=COLORS['secondary'])
     ax.set_ylim(0, 1)
 
     ax2 = ax.twinx()
     ax2.bar(x + width/2, summary['消费占比(%)'], width,
-            color='#2E86AB', label='消费占比(%)')
-    ax2.set_ylabel('消费占比 (%)', color='#2E86AB', fontsize=11)
-    ax2.tick_params(axis='y', labelcolor='#2E86AB')
+            color=COLORS['primary'], label='消费占比(%)')
+    ax2.set_ylabel('消费占比 (%)', color=COLORS['primary'], fontsize=11)
+    ax2.tick_params(axis='y', labelcolor=COLORS['primary'])
 
     ax.set_title('(b) 各聚类跳出率 vs 消费占比', fontsize=12)
     ax.grid(True, alpha=0.3, axis='y')
 
-    fig.suptitle('问题1：跳出率聚类分析（KMeans, k={}）'.format(k),
+    fig.suptitle('问题 1：跳出率聚类分析（KMeans, k={}）'.format(k),
                  fontsize=13, fontweight='bold')
     fig.tight_layout()
     save_fig(fig, 'q1_bounce_clusters', subdir='results')

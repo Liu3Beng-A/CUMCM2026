@@ -42,7 +42,7 @@ import matplotlib.pyplot as plt
 from scipy import stats
 
 from src.utils import TABLES_DIR, FIGURES_DIR, ensure_dir
-from src.plot_style import apply_style, save_fig
+from src.plot_style import apply_style, save_fig, COLORS
 
 
 # ===== 绝对路径 =====
@@ -231,9 +231,9 @@ def plot_rank_scatter(rank_df: pd.DataFrame, plan_ids, out_path: str):
 
     baselines = {
         # key in plot → (column name in rank_df, color, marker)
-        '等权平均': ('等权排名',   '#2E86AB', 'o'),
-        '熵权法':   ('熵权排名',   '#A23B72', 's'),
-        'TOPSIS':  ('TOPSIS排名', '#F18F01', '^'),
+        '等权平均': ('等权排名',   COLORS['primary'],  'o'),
+        '熵权法':   ('熵权排名',   COLORS['secondary'], 's'),
+        'TOPSIS':   ('TOPSIS排名', COLORS['accent'],   '^'),
     }
     critic_rank = rank_df['当前CRITIC排名'].values
 
@@ -261,7 +261,7 @@ def plot_rank_scatter(rank_df: pd.DataFrame, plan_ids, out_path: str):
     ax.set_yticks(range(1, 6))
     ax.set_xlabel('当前 CRITIC 排名（1 = 最优）', fontsize=11)
     ax.set_ylabel('Baseline 排名（1 = 最优）', fontsize=11)
-    ax.set_title('问题1：4 种评分方法的方案排名一致性', fontsize=13, fontweight='bold')
+    ax.set_title('问题 1：4 种评分方法的方案排名一致性', fontsize=13, fontweight='bold')
     ax.grid(True, alpha=0.3)
     ax.legend(loc='upper right', fontsize=10, framealpha=0.9)
 
@@ -289,13 +289,13 @@ def run_baseline_comparison():
     # 从 plan_scores 重建综合分（用混合权重再算一次，确保口径一致）
     # 这里直接读取每个方案的混合加权结果 = overall_score 的分解
     # 为简洁，从混合权重与维度分重算
-    dims = ['设计质量与创意', '关键词管理与运用', '出价策略与预算', '投放策略与时间']
-    mixed_w = {
-        '设计质量与创意':   0.1994,
-        '关键词管理与运用': 0.1355,
-        '出价策略与预算':   0.2959,
-        '投放策略与时间':   0.3692,
-    }
+    # 改-7：从 q1_weights.json 读取实际权重（之前硬编码导致与现网不一致）
+    weights_path = os.path.join(os.path.dirname(SCORE_JSON), 'q1_weights.json')
+    with open(weights_path, 'r', encoding='utf-8') as f:
+        weights_data = json.load(f)
+    dims = weights_data['dimension_names']
+    mixed_w = weights_data['mixed_weights']
+    print(f'  实际使用的混合权重: { {k: round(v, 4) for k, v in mixed_w.items()} }', flush=True)
     critic_scores = pd.Series(index=df.index, dtype=float)
     for pid in plan_ids:
         s = 0.0

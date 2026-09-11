@@ -15,7 +15,8 @@ for pid in dfc['方案ID'].unique():
     monthly = daily_p.set_index('日期').resample('ME')['消费额'].sum()
     cv_month = monthly.std() / monthly.mean() if monthly.mean() > 0 else 999
     n_days = len(daily_p)
-    s_time = max(0, min(100, 100 - abs(cv_month - 0.3) * 150))
+    s_time = 100.0 / (1.0 + 0.6 * (cv_month - 0.3) ** 2)
+    s_time = max(0, min(100, s_time))
     top_month = monthly.idxmax() if len(monthly) > 0 else None
     top_share = monthly.max() / monthly.sum() if len(monthly) > 0 else 0
     print(f'  方案 {pid}: n_days={n_days}, 月份数={len(monthly)}, '

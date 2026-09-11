@@ -81,7 +81,7 @@ def fig_design_quality(data):
     ax.set_title('(d) 各方案出价-效益地图（圆=消费额）')
     ax.grid(True, alpha=0.3)
 
-    fig.suptitle('问题1：设计质量与创意分析', fontsize=14, fontweight='bold')
+    fig.suptitle('问题 1：设计质量与创意分析', fontsize=14, fontweight='bold')
     fig.tight_layout()
     save_fig(fig, 'q1_design_quality')
     plt.close(fig)
@@ -154,7 +154,7 @@ def fig_keyword_management(data):
     ax.legend()
     ax.grid(True, alpha=0.3)
 
-    fig.suptitle('问题1：关键词管理与运用分析', fontsize=14, fontweight='bold')
+    fig.suptitle('问题 1：关键词管理与运用分析', fontsize=14, fontweight='bold')
     fig.tight_layout()
     save_fig(fig, 'q1_keyword_management')
     plt.close(fig)
@@ -197,20 +197,48 @@ def fig_bid_strategy(data):
     # (c) 方案维度CPC箱线图
     ax = axes[1, 0]
     cpc_data = []
-    plan_ids = []
+    plan_ids_cpc = []
     for pid, grp in dfc.groupby('方案ID'):
         cpcs = grp['CPC'].dropna()
         cpcs = cpcs[cpcs < 20]
         if len(cpcs) > 0:
             cpc_data.append(cpcs.values)
-            plan_ids.append(str(pid))
-    bp = ax.boxplot(cpc_data, labels=plan_ids, patch_artist=True, showmeans=True)
+            plan_ids_cpc.append(str(pid))
+
+    # 改-A：用小提琴图显示分布密度，并叠加简化的箱（不画 outlier 圆点）
+    # 比纯 boxplot 少很多空心圆，更清爽；比纯 violin 多中位数/IQR 信息
+    positions = np.arange(len(cpc_data))
+    parts = ax.violinplot(cpc_data, positions=positions, widths=0.7,
+                          showmeans=False, showmedians=False, showextrema=False)
+    for pc, color in zip(parts['bodies'], list(COLORS.values()) * 2):
+        pc.set_facecolor(color)
+        pc.set_edgecolor('black')
+        pc.set_alpha(0.55)
+        pc.set_linewidth(1.0)
+
+    # 在小提琴上叠加 IQR 箱（四分位）+ 中位数细线（纯 box-style 但不画 outlier）
+    bp = ax.boxplot(cpc_data, positions=positions, widths=0.18,
+                    patch_artist=True, showfliers=False, showmeans=True,
+                    medianprops=dict(color='black', linewidth=1.8),
+                    meanprops=dict(marker='D', markerfacecolor='white',
+                                   markeredgecolor='black', markersize=6),
+                    whiskerprops=dict(color='black', linewidth=1.0),
+                    capprops=dict(color='black', linewidth=1.0))
     for patch, color in zip(bp['boxes'], list(COLORS.values()) * 2):
-        patch.set_facecolor(color); patch.set_alpha(0.6)
-    ax.set_title('(c) 各方案的CPC分布（截断到<20元）')
+        patch.set_facecolor(color); patch.set_alpha(0.95)
+
+    # 在 x 轴下方注释"样本数 N"
+    for i, n in enumerate([len(c) for c in cpc_data]):
+        ax.text(i, -0.12, f'N={n}', transform=ax.get_xaxis_transform(),
+                ha='center', va='top', fontsize=8, color='#555555')
+
+    ax.set_xticks(positions)
+    ax.set_xticklabels(plan_ids_cpc, rotation=45, ha='right')
+    ax.set_title('(c) 各方案的 CPC 分布（小提琴 + IQR 箱）')
     ax.set_ylabel('CPC(元)')
-    ax.set_xlabel('方案ID')
-    ax.grid(True, alpha=0.3)
+    ax.set_xlabel('方案ID（N 为样本数）')
+    ax.grid(True, alpha=0.3, axis='y')
+    ax.set_ylim(bottom=0)
 
     # (d) 上方位消费占比饼图
     ax = axes[1, 1]
@@ -223,7 +251,7 @@ def fig_bid_strategy(data):
            autopct='%1.1f%%', startangle=90)
     ax.set_title('(d) 消费额在上方位 vs 普通位置的分布')
 
-    fig.suptitle('问题1：出价策略与预算分析', fontsize=14, fontweight='bold')
+    fig.suptitle('问题 1：出价策略与预算分析', fontsize=14, fontweight='bold')
     fig.tight_layout()
     save_fig(fig, 'q1_bid_strategy')
     plt.close(fig)
@@ -291,7 +319,7 @@ def fig_time_pattern(data):
     ax.set_xticklabels(monthly['月份'], rotation=45)
     ax.grid(True, alpha=0.3)
 
-    fig.suptitle('问题1：投放策略与时间规律', fontsize=14, fontweight='bold')
+    fig.suptitle('问题 1：投放策略与时间规律', fontsize=14, fontweight='bold')
     fig.tight_layout()
     save_fig(fig, 'q1_time_pattern')
     plt.close(fig)
@@ -304,7 +332,8 @@ def fig_score_radar(result):
 
     cats = list(result['dimensions'].keys())
     scores = [result['dimensions'][c]['score'] for c in cats]
-    weights = [result['dimensions'][c]['weight'] for c in cats]
+    weights = [result['dimensions'][c].get('weight_mixed',
+              result['dimensions'][c].get('weight', 0.25)) for c in cats]
 
     # 雷达角度
     n = len(cats)
@@ -326,7 +355,7 @@ def fig_score_radar(result):
     ax.set_ylim(0, 100)
     ax.set_yticks([20, 40, 60, 80, 100])
     ax.set_yticklabels(['20', '40', '60', '80', '100'], fontsize=8)
-    ax.set_title(f'问题1：SEM投放策略合理性综合评分雷达图\n综合得分: {result["overall_score"]} 分 / {result["grade"]}',
+    ax.set_title(f'问题 1：SEM投放策略合理性综合评分雷达图\n综合得分: {result["overall_score"]} 分 / {result["grade"]}',
                  fontsize=14, fontweight='bold', pad=20)
     ax.grid(True)
 
@@ -353,7 +382,7 @@ def fig_score_breakdown(result):
     ax.axvline(60, color='gray', linestyle='--', alpha=0.5, label='及格线(60)')
     ax.set_xlim(0, 110)
     ax.set_xlabel('评分(0-100)')
-    ax.set_title(f'问题1：综合评分总览 ({result["overall_score"]} 分 / {result["grade"]})')
+    ax.set_title(f'问题 1：综合评分总览 ({result["overall_score"]} 分 / {result["grade"]})')
     ax.legend()
     ax.grid(True, alpha=0.3)
 

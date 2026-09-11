@@ -59,7 +59,7 @@ def fig_heatmap():
 
     # 4) 自定义 colormap：红(0) → 黄(50) → 绿(100)
     cmap = LinearSegmentedColormap.from_list(
-        'sem_radar', ['#D62246', '#F18F01', '#F4D35E', '#06A77D', '#2E86AB']
+        'sem_radar', [COLORS['danger'], COLORS['accent'], '#F4D35E', COLORS['success'], COLORS['primary']]
     )
 
     # 5) 画图
@@ -96,7 +96,7 @@ def fig_heatmap():
                     fill=False, edgecolor='red', linewidth=3, zorder=10
                 ))
 
-    ax.set_title('问题1：5 方案 × 4 维度 评分热力图\n'
+    ax.set_title('问题 1：5 方案 × 4 维度 评分热力图\n'
                  '(红色边框 = 0 分异常；颜色映射：红(差) → 黄 → 绿(优))',
                  fontsize=13, fontweight='bold', pad=12)
 
@@ -135,7 +135,12 @@ def fig_heatmap():
 
 
 def _fig_penalty_compare(plan_ids_sorted, score_mat, dims, mixed_w, result, diag):
-    """画一张"扣分前后"对比图，专门展示 525368335 / 495817671 为何扣到 0"""
+    """画一张"扣分前后"对比图，专门展示 525368335 / 495817671 为何扣到 0
+
+    改-6：
+    - 扣分前：从 q1_plan_scores.csv（未被扣分污染）
+    - 扣分后：从 q1_score.json 的 plan_scores（已扣分）
+    """
     apply_style()
     overall_before = score_mat @ np.array([mixed_w[d] for d in dims])
 
@@ -144,11 +149,13 @@ def _fig_penalty_compare(plan_ids_sorted, score_mat, dims, mixed_w, result, diag
     # 当前综合分（应用扣分）
     with open(os.path.join(TABLES_DIR, 'q1_score.json'), 'r', encoding='utf-8') as f:
         result = json.load(f)
-    overall_after = np.array([result['plan_scores'][pid]['设计质量与创意'] * mixed_w['设计质量与创意']
-                              + result['plan_scores'][pid]['关键词管理与运用'] * mixed_w['关键词管理与运用']
-                              + result['plan_scores'][pid]['出价策略与预算'] * mixed_w['出价策略与预算']
-                              + result['plan_scores'][pid]['投放策略与时间'] * mixed_w['投放策略与时间']
-                              for pid in plan_ids_sorted])
+    overall_after = np.array([
+        result['plan_scores'][pid]['设计质量与创意'] * mixed_w['设计质量与创意']
+      + result['plan_scores'][pid]['关键词管理与运用'] * mixed_w['关键词管理与运用']
+      + result['plan_scores'][pid]['出价策略与预算'] * mixed_w['出价策略与预算']
+      + result['plan_scores'][pid]['投放策略与时间'] * mixed_w['投放策略与时间']
+        for pid in plan_ids_sorted
+    ])
 
     y = np.arange(len(plan_ids_sorted))
     h = 0.35
@@ -168,7 +175,7 @@ def _fig_penalty_compare(plan_ids_sorted, score_mat, dims, mixed_w, result, diag
     ax.set_yticklabels([f'方案 {pid}' for pid in plan_ids_sorted], fontsize=11)
     ax.invert_yaxis()
     ax.set_xlabel('综合评分', fontsize=11)
-    ax.set_title('问题1：节日 Bootstrap 扣分前后综合分对比\n'
+    ax.set_title('问题 1：节日 Bootstrap 扣分前后综合分对比\n'
                  '(扣分来源：春节/劳动/国庆法定节假日 p<0.001 → -30 分)',
                  fontsize=13, fontweight='bold')
     ax.legend(loc='lower right')

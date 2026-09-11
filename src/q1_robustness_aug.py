@@ -23,8 +23,9 @@ from prophet import Prophet
 
 from src.utils import (
     ROOT, PROCESSED_DIR, TABLES_DIR, FIGURES_DIR,
-    ensure_dir, setup_matplotlib,
+    ensure_dir,
 )
+from src.plot_style import apply_style, save_fig, COLORS, q1_title
 from src.config import HOLIDAYS_2025, SHOPPING_FESTIVALS_2025
 
 # 路径
@@ -262,69 +263,58 @@ def run_bootstrap_comparison(original_daily, clean_daily,
     """
     print('\n=== 步骤4：Bootstrap CI 宽度对比 ===', flush=True)
     
-    def _bootstrap_one(df, value_col, holiday_date_str, holiday_name, n_boot=100):
-        """单节日单数据集 Bootstrap"""
+    def _bootstrap_one(df, value_col, holiday_date_str, holiday_name, n_boot=200):
+        """单节日单数据集 Bootstrap（简化版 - 不用 Prophet）
+
+        节日效应 = 当天值 - 前后 7 天均值（剔除节日当天）
+        每次 bootstrap 重采样整年，对节日效应重新估计
+        """
         np.random.seed(42)
         d_holiday = pd.to_datetime(holiday_date_str)
-        
+
         prophet_df = df[['日期', value_col]].copy()
-        prophet_df.columns = ['ds', 'y']
-        prophet_df = prophet_df.sort_values('ds').reset_index(drop=True)
-        
-        diffs = []
+        prophet_df = prophet_df.sort_values('日期').reset_index(drop=True)
         n = len(prophet_df)
-        
-        for b in range(n_boot):
-            idx = np.random.choice(n, size=n, replace=True)
-            boot = prophet_df.iloc[idx].reset_index(drop=True)
-            
-            try:
-                future = boot[['ds']]
-                
-                # 含节假日模型
-                m_a = Prophet(yearly_seasonality=False, weekly_seasonality=True,
-                             daily_seasonality=False, 
-                             holidays=make_holidays_df(ALL_HOLIDAYS),
-                             holidays_prior_scale=20, changepoint_prior_scale=0.05,
-                             seasonality_prior_scale=10, interval_width=0.95)
-                m_a.fit(boot)
-                fc_a = m_a.predict(future)
-                yhat_a = fc_a.set_index('ds')['yhat']
-                yhat_a = yhat_a[~yhat_a.index.duplicated(keep='first')]
-                
-                # 无节假日模型
-                m_b = Prophet(yearly_seasonality=False, weekly_seasonality=True,
-                             daily_seasonality=False,
-                             changepoint_prior_scale=0.05, seasonality_prior_scale=10,
-                             interval_width=0.95)
-                m_b.fit(boot)
-                fc_b = m_b.predict(future)
-                yhat_b = fc_b.set_index('ds')['yhat']
-                yhat_b = yhat_b[~yhat_b.index.duplicated(keep='first')]
-                
-                # 窗口差值
-                win_mask = (yhat_a.index >= d_holiday) & (yhat_a.index <= d_holiday + pd.Timedelta(days=1))
-                if win_mask.sum() == 0:
-                    continue
-                
-                boot_daily = boot.groupby('ds')['y'].sum()
-                act = boot_daily.reindex(yhat_a.index[win_mask], fill_value=0).sum()
-                diff = yhat_a[win_mask].sum() - yhat_b[win_mask].sum()
-                diffs.append(diff)
-                
-            except Exception:
+
+        # 找节日当天的位置（按日期精确匹配）
+        d_str_only = pd.Timestamp(d_holiday).normalize()
+        matches = prophet_df[prophet_df['日期'].dt.normalize() == d_str_only].index
+        if len(matches) == 0:
+            return None
+        h_idx = int(matches[0])
+
+        diffs = []
+        for _ in range(n_boot):
+            # 重采样整年
+            idx_boot = np.random.choice(n, size=n, replace=True)
+            boot_y = prophet_df.loc[idx_boot, value_col].values
+            boot_dates = prophet_df.loc[idx_boot, '日期'].values
+
+            # 找 boot 数据中节日当天（首次出现）
+            boot_h_arr = np.where(pd.Series(boot_dates).dt.normalize().values == d_str_only)[0]
+            if len(boot_h_arr) == 0:
                 continue
-        
+            boot_h_idx = int(boot_h_arr[0])
+
+            # 前后 7 天内的非节日数据
+            other_idx = [i for i in range(len(boot_y))
+                         if i != boot_h_idx and abs(i - boot_h_idx) <= 7]
+            if len(other_idx) < 4:
+                continue
+
+            effect = boot_y[boot_h_idx] - boot_y[other_idx].mean()
+            diffs.append(effect)
+
         diffs = np.array(diffs)
         if len(diffs) == 0:
             return None
-        
+
         ci_low = np.percentile(diffs, 2.5)
         ci_high = np.percentile(diffs, 97.5)
         mean_diff = diffs.mean()
         p_val = 2 * min((diffs <= 0).mean(), (diffs >= 0).mean())
         ci_width = ci_high - ci_low
-        
+
         return {
             '均值差': mean_diff,
             'CI下限': ci_low,
@@ -333,7 +323,7 @@ def run_bootstrap_comparison(original_daily, clean_daily,
             'p值': p_val,
             'n_eff': len(diffs),
         }
-    
+
     rows = []
     for d_str, name in holidays_to_test:
         print(f'  Bootstrap: {name} {d_str}', flush=True)
@@ -507,11 +497,27 @@ def run_score_comparison(original_daily, clean_daily):
 
     from src.q1_scoring import _score_per_plan
 
+    # 找异常日时间戳（用两数据集之差）
+    orig_dates = set(original_daily['日期'])
+    clean_dates = set(clean_daily['日期'])
+    abnormal_dates = orig_dates - clean_dates
+    abnormal_ts = list(abnormal_dates)[0] if abnormal_dates else None
+
+    # 含异常日 / 剔除异常日 的 plan_daily 与 campaign_daily
+    plan_daily_full = pd.read_pickle(os.path.join(Q1_DIR, 'plan_daily.pkl'))
+    campaign_daily_full = pd.read_pickle(os.path.join(Q1_DIR, 'campaign_daily.pkl'))
+    if abnormal_ts is not None:
+        plan_daily_clean = plan_daily_full[plan_daily_full['日期'] != abnormal_ts].copy().reset_index(drop=True)
+        campaign_daily_clean = campaign_daily_full[campaign_daily_full['日期'] != abnormal_ts].copy().reset_index(drop=True)
+    else:
+        plan_daily_clean = plan_daily_full.copy().reset_index(drop=True)
+        campaign_daily_clean = campaign_daily_full.copy().reset_index(drop=True)
+
     # 含异常日数据
     print('  计算含异常日评分...', flush=True)
     orig_data = {
-        'campaign_daily': pd.read_pickle(os.path.join(Q1_DIR, 'campaign_daily.pkl')),
-        'plan_daily': pd.read_pickle(os.path.join(Q1_DIR, 'plan_daily.pkl')),
+        'campaign_daily': campaign_daily_full,
+        'plan_daily': plan_daily_full,
         'unit_daily': pd.read_pickle(os.path.join(Q1_DIR, 'unit_daily.pkl')),
         'plan_total': pd.read_pickle(os.path.join(Q1_DIR, 'plan_total.pkl')),
         'unit_total': pd.read_pickle(os.path.join(Q1_DIR, 'unit_total.pkl')),
@@ -525,8 +531,8 @@ def run_score_comparison(original_daily, clean_daily):
     # 剔除异常日数据
     print('  计算剔除异常日评分...', flush=True)
     clean_data = {
-        'campaign_daily': pd.read_pickle(os.path.join(Q1_DIR, 'campaign_daily.pkl')),
-        'plan_daily': pd.read_pickle(os.path.join(Q1_DIR, 'plan_daily.pkl')),
+        'campaign_daily': campaign_daily_clean,
+        'plan_daily': plan_daily_clean,
         'unit_daily': pd.read_pickle(os.path.join(Q1_DIR, 'unit_daily.pkl')),
         'plan_total': pd.read_pickle(os.path.join(Q1_DIR, 'plan_total.pkl')),
         'unit_total': pd.read_pickle(os.path.join(Q1_DIR, 'unit_total.pkl')),
@@ -571,7 +577,6 @@ def run_score_comparison(original_daily, clean_daily):
         print(f'    识别异常日：{pd.to_datetime(abnormal_ts).strftime("%Y-%m-%d")}', flush=True)
 
     # 读取方案级日级数据（daily_full 不含方案ID，故用 plan_daily）
-    plan_daily_full = pd.read_pickle(os.path.join(Q1_DIR, 'plan_daily.pkl'))
     plan_ids = sorted([int(x) for x in plan_daily_full['方案ID'].unique()])
 
     cv_orig_list, cv_clean_list = [], []
@@ -714,12 +719,12 @@ def plot_robustness_figure(original_daily, clean_daily,
     (d) 综合评分对比（5方案）
     """
     print('\n=== 步骤6：绑制可视化图表 ===', flush=True)
-    
-    setup_matplotlib()
+
+    apply_style()
     plt.rcParams['font.size'] = 10
     plt.rcParams['axes.titlesize'] = 11
     plt.rcParams['figure.dpi'] = 120
-    
+
     fig, axes = plt.subplots(2, 2, figsize=(14, 10))
     
     abnormal_dt = pd.to_datetime(abnormal_date)
@@ -728,24 +733,26 @@ def plot_robustness_figure(original_daily, clean_daily,
     # === (a) 8月消费额柱状图 ===
     ax = axes[0, 0]
     aug_sorted = aug.sort_values('日期')
-    colors = ['#D62246' if d == abnormal_dt else '#2E86AB' for d in aug_sorted['日期']]
+    colors = [COLORS['danger'] if d == abnormal_dt else COLORS['primary']
+              for d in aug_sorted['日期']]
     bars = ax.bar(range(len(aug_sorted)), aug_sorted['总消费额'], color=colors, alpha=0.7)
-    
+
     # 标注异常日
     abnormal_idx = aug_sorted[aug_sorted['日期'] == abnormal_dt].index[0]
     local_idx = list(aug_sorted.index).index(abnormal_idx)
     ax.annotate(f'异常日\n{abnormal_date}\nZ={z_score:.2f}',
                 xy=(local_idx, aug_sorted.loc[abnormal_idx, '总消费额']),
                 xytext=(local_idx + 2, aug_sorted.loc[abnormal_idx, '总消费额'] * 1.1),
-                arrowprops=dict(arrowstyle='->', color='#D62246'),
-                fontsize=9, color='#D62246', fontweight='bold')
-    
+                arrowprops=dict(arrowstyle='->', color=COLORS['danger']),
+                fontsize=9, color=COLORS['danger'], fontweight='bold')
+
     ax.set_xlabel('8月日期序号')
     ax.set_ylabel('消费额（元）')
     ax.set_title('(a) 2025年8月每日消费额（红色=异常日）')
-    ax.set_xticks(range(0, len(aug_sorted), 5))
-    ax.set_xticklabels([aug_sorted['日期'].iloc[i].strftime('%m-%d') 
-                       for i in range(0, len(aug_sorted), 5)], rotation=45)
+    ax.set_xticks(range(0, len(aug_sorted), 3))
+    ax.set_xticklabels([aug_sorted['日期'].iloc[i].strftime('%m/%d')
+                        for i in range(0, len(aug_sorted), 3)],
+                       rotation=90, ha='center', fontsize=8)
     ax.grid(True, alpha=0.3)
     
     # === (b) Prophet 时序对比 ===
@@ -754,26 +761,26 @@ def plot_robustness_figure(original_daily, clean_daily,
     try:
         # 重新拟合 Prophet
         for label, df, ls, clr in [
-            ('含异常日', original_daily, '-', '#F18F01'),
-            ('剔除异常日', clean_daily, '--', '#06A77D'),
+            ('含异常日', original_daily, '-', COLORS['accent']),
+            ('剔除异常日', clean_daily, '--', COLORS['success']),
         ]:
             prophet_df = df[['日期', '总消费额']].copy()
             prophet_df.columns = ['ds', 'y']
             prophet_df = prophet_df.sort_values('ds').reset_index(drop=True)
-            
+
             m = Prophet(yearly_seasonality=False, weekly_seasonality=True,
                        daily_seasonality=False, holidays=make_holidays_df(ALL_HOLIDAYS),
                        holidays_prior_scale=20, changepoint_prior_scale=0.05,
                        seasonality_prior_scale=10, interval_width=0.95)
             m.fit(prophet_df)
             fc = m.predict(prophet_df[['ds']])
-            
-            ax.plot(fc['ds'], fc['yhat'], label=label, linewidth=1.2, 
+
+            ax.plot(fc['ds'], fc['yhat'], label=label, linewidth=1.2,
                    linestyle=ls, color=clr)
             ax.fill_between(fc['ds'], fc['yhat_lower'], fc['yhat_upper'],
                            color=clr, alpha=0.1)
-        
-        ax.axvline(abnormal_dt, color='#D62246', linestyle=':', alpha=0.7,
+
+        ax.axvline(abnormal_dt, color=COLORS['danger'], linestyle=':', alpha=0.7,
                   label='异常日')
         ax.set_xlabel('日期')
         ax.set_ylabel('消费额预测（元）')
@@ -819,8 +826,10 @@ def plot_robustness_figure(original_daily, clean_daily,
                 orig_widths.append(0)
                 clean_widths.append(0)
 
-        bars1 = ax.bar(x - width/2, orig_widths, width, label='含异常日', color='#F18F01', alpha=0.7)
-        bars2 = ax.bar(x + width/2, clean_widths, width, label='剔除异常日', color='#06A77D', alpha=0.7)
+        bars1 = ax.bar(x - width/2, orig_widths, width, label='含异常日',
+                       color=COLORS['accent'], alpha=0.7)
+        bars2 = ax.bar(x + width/2, clean_widths, width, label='剔除异常日',
+                       color=COLORS['success'], alpha=0.7)
 
         ax.set_xlabel('节日')
         ax.set_ylabel('Bootstrap CI 宽度（元）')
@@ -862,10 +871,10 @@ def plot_robustness_figure(original_daily, clean_daily,
     x = np.arange(len(plan_ids) + 1)  # +1 汇总
     width = 0.35
     
-    bars1 = ax.bar(x - width/2, list(orig_scores) + [orig_summary], 
-                   width, label='含异常日', color='#F18F01', alpha=0.7)
-    bars2 = ax.bar(x + width/2, list(clean_scores) + [clean_summary], 
-                   width, label='剔除异常日', color='#06A77D', alpha=0.7)
+    bars1 = ax.bar(x - width/2, list(orig_scores) + [orig_summary],
+                   width, label='含异常日', color=COLORS['accent'], alpha=0.7)
+    bars2 = ax.bar(x + width/2, list(clean_scores) + [clean_summary],
+                   width, label='剔除异常日', color=COLORS['success'], alpha=0.7)
     
     ax.set_xlabel('方案 / 汇总')
     ax.set_ylabel('综合评分')
@@ -890,7 +899,7 @@ def plot_robustness_figure(original_daily, clean_daily,
             ax.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 1,
                    f'{val:.1f}', ha='center', va='bottom', fontsize=8)
     
-    fig.suptitle('问题1：异常值鲁棒性检验（2025-08 高消费日）', 
+    fig.suptitle('问题 1：异常值鲁棒性检验（2025-08 高消费日）', 
                 fontsize=14, fontweight='bold', y=0.98)
     fig.tight_layout()
     

@@ -35,7 +35,7 @@ from src.q1_scoring import (
 )
 from src.q1_weights import compute_weights, SUBJECTIVE_WEIGHTS
 from src.utils import FIGURES_DIR, TABLES_DIR, ensure_dir
-from src.plot_style import apply_style, save_fig
+from src.plot_style import apply_style, save_fig, COLORS
 
 
 def perturb_weights(base_weights: dict, key: str, delta: float) -> dict:
@@ -155,7 +155,7 @@ def run_sensitivity(perturb_range=0.20, n_steps=9):
     right_widths = tops - centers
 
     # 用双柱（左半 + 右半）
-    colors = ['#2E86AB', '#A23B72', '#F18F01', '#06A77D']
+    colors = [COLORS['primary'], COLORS['secondary'], COLORS['accent'], COLORS['success']]
     for i, (lbl, c) in enumerate(zip(labels, colors)):
         # 左半柱（扰动下限方向）
         ax.barh(y_pos[i], left_widths[i], left=centers[i] - left_widths[i],
@@ -175,7 +175,7 @@ def run_sensitivity(perturb_range=0.20, n_steps=9):
     ax.set_yticks(y_pos)
     ax.set_yticklabels(labels, fontsize=11)
     ax.set_xlabel('综合评分', fontsize=11)
-    ax.set_title(f'问题1：权重扰动敏感性分析（龙卷风图 ±{int(perturb_range*100)}%）',
+    ax.set_title(f'问题 1：权重扰动敏感性分析（龙卷风图 ±{int(perturb_range*100)}%）',
                  fontsize=13, fontweight='bold')
     ax.grid(True, alpha=0.3, axis='x')
     ax.legend(loc='lower right')
@@ -203,7 +203,7 @@ def run_sensitivity(perturb_range=0.20, n_steps=9):
     ax.axvline(0, color='gray', linestyle=':', alpha=0.3)
     ax.set_xlabel('权重扰动 (%)', fontsize=11)
     ax.set_ylabel('综合评分', fontsize=11)
-    ax.set_title('问题1：权重扰动敏感性曲线', fontsize=13, fontweight='bold')
+    ax.set_title('问题 1：权重扰动敏感性曲线', fontsize=13, fontweight='bold')
     ax.legend(loc='best', fontsize=9)
     ax.grid(True, alpha=0.3)
     fig.tight_layout()

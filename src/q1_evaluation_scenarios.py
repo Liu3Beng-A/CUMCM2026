@@ -30,7 +30,7 @@ import matplotlib.pyplot as plt
 from scipy import stats
 
 from src.utils import ROOT, PROCESSED_DIR, TABLES_DIR, FIGURES_DIR, ensure_dir
-from src.plot_style import apply_style
+from src.plot_style import apply_style, COLORS
 
 
 # ===================== 绝对路径 =====================
@@ -229,9 +229,9 @@ def plot_entropy_weights_compare(dims: list,
     ent_vals = [w_entropy[d] for d in dims]
 
     bars1 = ax.bar(x - width/2, cur_vals, width, label='CRITIC+主观 70:30',
-                   color='#2E86AB', edgecolor='black', linewidth=0.6)
+                   color=COLORS['primary'], edgecolor='black', linewidth=0.6)
     bars2 = ax.bar(x + width/2, ent_vals, width, label='熵权法（纯客观）',
-                   color='#F18F01', edgecolor='black', linewidth=0.6)
+                   color=COLORS['accent'], edgecolor='black', linewidth=0.6)
 
     # 数值标签
     for b in list(bars1) + list(bars2):
@@ -242,7 +242,7 @@ def plot_entropy_weights_compare(dims: list,
     ax.set_xticks(x)
     ax.set_xticklabels(dims, fontsize=10)
     ax.set_ylabel('权重', fontsize=11)
-    ax.set_title('问题1：CRITIC+主观 70:30 vs 熵权法（备选方案1）权重对比',
+    ax.set_title('问题 1：CRITIC+主观 70:30 vs 熵权法（备选方案1）权重对比',
                  fontsize=13, fontweight='bold')
     ax.set_ylim(0, max(max(cur_vals), max(ent_vals)) * 1.18)
     ax.legend(loc='upper right', fontsize=10, framealpha=0.9)
@@ -604,14 +604,14 @@ def plot_fuzzy_heatmap(mu_df: pd.DataFrame, weights: dict, out_path: str) -> Non
     indicator_cols = [c for c in mu_df.columns if c != '综合隶属度']
     w_vals = [weights.get(c, 0) for c in indicator_cols]
     x = np.arange(len(indicator_cols))
-    bars = ax1.bar(x, w_vals, color='#06A77D', edgecolor='black', linewidth=0.6)
+    bars = ax1.bar(x, w_vals, color=COLORS['success'], edgecolor='black', linewidth=0.6)
     for b, w in zip(bars, w_vals):
         ax1.text(b.get_x() + b.get_width() / 2, b.get_height() + 0.005,
                  f'{w:.3f}', ha='center', va='bottom', fontsize=8)
     ax1.set_xticks(x)
     ax1.set_xticklabels(indicator_cols, rotation=20, ha='right', fontsize=9)
     ax1.set_ylabel('权重（熵权法摊派）', fontsize=10)
-    ax1.set_title('问题1：模糊综合评价（FCE）—— 隶属度热力图',
+    ax1.set_title('问题 1：模糊综合评价（FCE）—— 隶属度热力图',
                    fontsize=13, fontweight='bold')
     ax1.set_ylim(0, max(w_vals) * 1.25 if max(w_vals) > 0 else 1)
     ax1.grid(True, axis='y', alpha=0.3)
@@ -659,7 +659,7 @@ def plot_fuzzy_heatmap(mu_df: pd.DataFrame, weights: dict, out_path: str) -> Non
 def main():
     """主流程：跑两个备选方案，输出全部 6 个文件"""
     print('=' * 60, flush=True)
-    print('  问题1：备选指标体系对比', flush=True)
+    print('  问题 1：备选指标体系对比', flush=True)
     print('  备选方案 1：熵权法（替代 CRITIC+主观 70:30）', flush=True)
     print('  备选方案 2：模糊综合评价（替代百分位+Z-Score）', flush=True)
     print('=' * 60, flush=True)

@@ -132,6 +132,14 @@ def apply_penalty_to_score(score_json_path=None):
     result['dimensions']['投放策略与时间']['holiday_penalty'] = penalty_result
     result['holiday_penalty_method'] = 'Bootstrap-based 分级扣分 (改-5)'
 
+    # 改-6：同步更新每个方案的"投放策略与时间"维度
+    # 原因：Bootstrap 扣分基于全公司日历，每个方案都受影响
+    for pid, sc in result.get('plan_scores', {}).items():
+        old_p_time = sc['投放策略与时间']
+        new_p_time = max(0, old_p_time - penalty_result['total_penalty'])
+        sc['投放策略与时间'] = round(new_p_time, 1)
+        sc['_投放策略与时间_原值'] = old_p_time
+
     # 重算综合分
     new_overall = sum(
         info['weight_mixed'] * info['score']
@@ -143,6 +151,22 @@ def apply_penalty_to_score(score_json_path=None):
     elif new_overall >= 70: result['grade'] = 'B (良好)'
     elif new_overall >= 55: result['grade'] = 'C (一般)'
     else:                   result['grade'] = 'D (需改进)'
+
+    # 改-6：同步更新每个方案的综合分（CRITIC 混合权重）
+    w = result['dimensions']
+    for pid, sc in result.get('plan_scores', {}).items():
+        # 使用本方案的时间维度原值（_投放策略与时间_原值）来重算原综合分
+        old_p_time = sc.get('_投放策略与时间_原值', sc['投放策略与时间'] + penalty_result['total_penalty'])
+        sc['_综合分_原值'] = round(
+            w['设计质量与创意']['weight_mixed']   * sc['设计质量与创意'] +
+            w['关键词管理与运用']['weight_mixed'] * sc['关键词管理与运用'] +
+            w['出价策略与预算']['weight_mixed']   * sc['出价策略与预算'] +
+            w['投放策略与时间']['weight_mixed']   * old_p_time, 2)
+        sc['综合分'] = round(
+            w['设计质量与创意']['weight_mixed']   * sc['设计质量与创意'] +
+            w['关键词管理与运用']['weight_mixed'] * sc['关键词管理与运用'] +
+            w['出价策略与预算']['weight_mixed']   * sc['出价策略与预算'] +
+            w['投放策略与时间']['weight_mixed']   * sc['投放策略与时间'], 2)
 
     with open(score_json_path, 'w', encoding='utf-8') as f:
         json.dump(result, f, ensure_ascii=False, indent=2)

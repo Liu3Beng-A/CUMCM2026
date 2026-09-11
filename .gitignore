@@ -1,0 +1,29 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# 日志和临时输出（已统一移入 logs/，这里忽略避免到处散落）
+logs/*.log
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# 上游数据缓存（src/data_loader.py 会重建）
+data/processed/campaign_main.pkl
+data/processed/keyword_main.pkl
+data/processed/registration_main.pkl
+
+# 临时工具脚本（避免误提交）
+_diff_check.py

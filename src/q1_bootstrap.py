@@ -34,7 +34,7 @@ from prophet import Prophet
 from src.q1_data_prep import build_q1_data
 from src.utils import FIGURES_DIR, TABLES_DIR, ensure_dir
 from src.config import HOLIDAYS_2025, SHOPPING_FESTIVALS_2025
-from src.plot_style import apply_style, save_fig
+from src.plot_style import apply_style, save_fig, COLORS
 
 
 ALL_HOLIDAYS = list(HOLIDAYS_2025) + [(d, '购物节') for d in SHOPPING_FESTIVALS_2025]
@@ -179,7 +179,7 @@ def run_bootstrap(n_boot=200, n_holidays=None, value_cols=('总消费额', '新�
         x = np.arange(len(sub))
         ax.errorbar(sub['均值差'], x,
                     xerr=[sub['均值差'] - sub['CI下限(2.5%)'], sub['CI上限(97.5%)'] - sub['均值差']],
-                    fmt='o', color='#2E86AB', ecolor='#A23B72', capsize=3)
+                    fmt='o', color=COLORS['primary'], ecolor=COLORS['secondary'], capsize=3)
         ax.axvline(0, color='red', linestyle='--', alpha=0.5, label='零线')
         ax.set_yticks(x)
         ax.set_yticklabels([f'{r["节日"]} {r["日期"]}' for _, r in sub.iterrows()], fontsize=7)
@@ -188,7 +188,7 @@ def run_bootstrap(n_boot=200, n_holidays=None, value_cols=('总消费额', '新�
         ax.grid(True, alpha=0.3)
         ax.legend()
 
-    fig.suptitle('问题1：节日效应 Bootstrap 显著性检验', fontsize=13, fontweight='bold')
+    fig.suptitle('问题 1：节日效应 Bootstrap 显著性检验', fontsize=13, fontweight='bold')
     fig.tight_layout()
     save_fig(fig, 'q1_bootstrap_ci', subdir='results')
     plt.close(fig)

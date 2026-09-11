@@ -27,7 +27,7 @@ from prophet import Prophet
 from src.q1_data_prep import build_q1_data
 from src.utils import FIGURES_DIR, TABLES_DIR, ensure_dir
 from src.config import HOLIDAYS_2025, SHOPPING_FESTIVALS_2025
-from src.plot_style import apply_style, save_fig
+from src.plot_style import apply_style, save_fig, COLORS
 
 
 # 所有自定义节日
@@ -104,12 +104,12 @@ def decompose_series(daily_series, value_col, title='消费额', suffix=''):
 
     # (1) 原始 + 预测（含置信区间）
     ax = axes[0]
-    ax.plot(compare['日期'], compare['实际值'], label='实际', linewidth=1.0, color='#2E86AB')
-    ax.plot(compare['日期'], compare['正常预测'], label='Prophet预测', linewidth=1.0, alpha=0.7, color='#F18F01')
-    ax.plot(compare['日期'], compare['无假日预测'], label='反事实(无假日)', linewidth=1.0, alpha=0.7, linestyle='--', color='#A23B72')
+    ax.plot(compare['日期'], compare['实际值'], label='实际', linewidth=1.0, color=COLORS['primary'])
+    ax.plot(compare['日期'], compare['正常预测'], label='Prophet预测', linewidth=1.0, alpha=0.7, color=COLORS['accent'])
+    ax.plot(compare['日期'], compare['无假日预测'], label='反事实(无假日)', linewidth=1.0, alpha=0.7, linestyle='--', color=COLORS['secondary'])
     # 改-3: 置信区间
     ax.fill_between(compare['日期'], forecast['yhat_lower'], forecast['yhat_upper'],
-                    color='#F18F01', alpha=0.15, label='95% 置信区间')
+                    color=COLORS['accent'], alpha=0.15, label='95% 置信区间')
     ax.set_title(f'(a) {title} 实际 vs 预测 vs 反事实模拟', fontsize=12)
     ax.set_ylabel(value_col)
     ax.legend(loc='upper left', fontsize=9)
@@ -117,13 +117,13 @@ def decompose_series(daily_series, value_col, title='消费额', suffix=''):
 
     # (2) 趋势 + 季节性
     ax = axes[1]
-    c1 = '#2E86AB'
+    c1 = COLORS['primary']
     ax.plot(forecast['ds'], forecast['trend'], label='趋势', color=c1)
     if 'yearly' in forecast.columns:
-        ax.plot(forecast['ds'], forecast['yearly'], label='年度季节性', color='#F18F01')
-    ax.plot(forecast['ds'], forecast['weekly'], label='周季节性', color='#A23B72')
+        ax.plot(forecast['ds'], forecast['yearly'], label='年度季节性', color=COLORS['accent'])
+    ax.plot(forecast['ds'], forecast['weekly'], label='周季节性', color=COLORS['secondary'])
     if 'holidays' in forecast.columns:
-        ax.plot(forecast['ds'], forecast['holidays'], label='节假日效应', color='#06A77D')
+        ax.plot(forecast['ds'], forecast['holidays'], label='节假日效应', color=COLORS['success'])
     ax.set_title('(b) 序列成分分解', fontsize=12)
     ax.legend()
     ax.grid(True, alpha=0.3)
@@ -131,7 +131,7 @@ def decompose_series(daily_series, value_col, title='消费额', suffix=''):
     # (3) 节日贡献
     ax = axes[2]
     ax.bar(compare['日期'], compare['节日贡献(实际-无假日)'],
-           color=np.where(compare['节日贡献(实际-无假日)'] >= 0, '#06A77D', '#D62246'),
+           color=np.where(compare['节日贡献(实际-无假日)'] >= 0, COLORS['success'], COLORS['danger']),
            width=1.5)
     ax.axhline(0, color='black', linewidth=0.5)
     ax.set_title('(c) 每日节日贡献 = 实际 - 无假日预测', fontsize=12)
@@ -147,7 +147,7 @@ def decompose_series(daily_series, value_col, title='消费额', suffix=''):
     ax.set_ylabel('残差')
     ax.grid(True, alpha=0.3)
 
-    fig.suptitle(f'问题1：{title}时间序列分解与假日反事实分析', fontsize=14, fontweight='bold')
+    fig.suptitle(f'问题 1：{title}时间序列分解与假日反事实分析', fontsize=14, fontweight='bold')
     fig.tight_layout()
 
     out_png = os.path.join(FIGURES_DIR, f'q1_prophet_{suffix}.png')
@@ -210,14 +210,14 @@ def holiday_box_plot(data):
         ]
         bp = ax.boxplot(data_to_plot, labels=['节假日', '工作日', '周末'],
                         patch_artist=True, showmeans=True)
-        for patch, color in zip(bp['boxes'], ['#F18F01', '#2E86AB', '#A23B72']):
+        for patch, color in zip(bp['boxes'], [COLORS['accent'], COLORS['primary'], COLORS['secondary']]):
             patch.set_facecolor(color)
             patch.set_alpha(0.6)
         ax.set_title(title, fontsize=12)
         ax.grid(True, alpha=0.3)
         ax.set_ylabel(col)
 
-    fig.suptitle('问题1：节假日效应对比分析', fontsize=14, fontweight='bold')
+    fig.suptitle('问题 1：节假日效应对比分析', fontsize=14, fontweight='bold')
     fig.tight_layout()
     save_fig(fig, 'q1_holiday_boxplot', subdir='results')
     plt.close(fig)

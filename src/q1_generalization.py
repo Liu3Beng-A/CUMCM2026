@@ -37,10 +37,12 @@ from src.q1_scoring import _score_per_plan
 from src.utils import (
     ROOT, PROCESSED_DIR, TABLES_DIR, FIGURES_DIR, ensure_dir
 )
+from src.plot_style import apply_style, COLORS, q1_title
 from src.config import HOLIDAYS_2025, SHOPPING_FESTIVALS_2025
 
 # 设置中文字体
 plt.rcParams['font.size'] = 10
+apply_style()
 
 # 所有节假日
 ALL_HOLIDAYS = list(HOLIDAYS_2025) + [(d, '购物节') for d in SHOPPING_FESTIVALS_2025]
@@ -165,12 +167,14 @@ def time_split_validation():
 
     # 图 A1: 时序对比
     ax = axes[0]
-    ax.plot(test_copy['日期'], test_copy['总消费额'], label='实际消费额', alpha=0.7, linewidth=1.5)
-    ax.plot(test_copy['日期'], test_copy['预测值'], label='Holt-Winters预测', alpha=0.7, linestyle='--', linewidth=1.5)
+    ax.plot(test_copy['日期'], test_copy['总消费额'], label='实际消费额',
+            color=COLORS['primary'], alpha=0.7, linewidth=1.5)
+    ax.plot(test_copy['日期'], test_copy['预测值'], label='Holt-Winters预测',
+            color=COLORS['accent'], alpha=0.7, linestyle='--', linewidth=1.5)
 
     # 标注节日
     for _, row in results_df.iterrows():
-        ax.axvline(pd.to_datetime(row['日期']), color='red', linestyle=':', alpha=0.5)
+        ax.axvline(pd.to_datetime(row['日期']), color=COLORS['danger'], linestyle=':', alpha=0.5)
         ax.annotate(row['节日'], (pd.to_datetime(row['日期']), ax.get_ylim()[1] * 0.95),
                    fontsize=8, rotation=45)
 
@@ -184,8 +188,10 @@ def time_split_validation():
     ax = axes[1]
     x = np.arange(len(monthly))
     width = 0.35
-    bars1 = ax.bar(x - width/2, monthly['实际总消费额'], width, label='实际', alpha=0.7)
-    bars2 = ax.bar(x + width/2, monthly['预测总消费额'], width, label='预测', alpha=0.7)
+    bars1 = ax.bar(x - width/2, monthly['实际总消费额'], width, label='实际',
+                   color=COLORS['primary'], alpha=0.7)
+    bars2 = ax.bar(x + width/2, monthly['预测总消费额'], width, label='预测',
+                   color=COLORS['accent'], alpha=0.7)
     ax.set_xticks(x)
     ax.set_xticklabels(monthly['月份_str'])
     ax.set_title('策略 A：月度消费额 实际 vs 预测', fontsize=12)
@@ -200,7 +206,8 @@ def time_split_validation():
                    (i + width/2, row['预测总消费额']),
                    fontsize=8, ha='center', va='bottom')
 
-    fig.suptitle('问题一：跨数据集泛化性 - 策略 A：时间切分验证', fontsize=14, fontweight='bold')
+    fig.suptitle(q1_title('跨数据集泛化性 - 策略 A：时间切分验证'),
+                 fontsize=14, fontweight='bold')
     fig.tight_layout()
 
     out_fig = os.path.join(FIGURES_DIR, 'q1_generalization_time_split.png')
@@ -340,7 +347,8 @@ def loo_cross_validation():
     ax.legend(loc='upper left', fontsize=9)
     ax.set_aspect('equal')
 
-    fig.suptitle('问题一：跨数据集泛化性 - 策略 B：留一方案交叉验证', fontsize=14, fontweight='bold')
+    fig.suptitle(q1_title('跨数据集泛化性 - 策略 B：留一方案交叉验证'),
+                 fontsize=14, fontweight='bold')
     fig.tight_layout()
 
     out_fig = os.path.join(FIGURES_DIR, 'q1_generalization_loo_cv.png')
@@ -456,8 +464,8 @@ def bootstrap_generalization(n_bootstrap=100):
     ax.errorbar(weight_ci['均值'], y_pos, xerr=[
         weight_ci['均值'] - weight_ci['CI下界'],
         weight_ci['CI上界'] - weight_ci['均值']
-    ], fmt='o', capsize=5, markersize=8, color='steelblue', ecolor='steelblue')
-    ax.scatter(weight_ci['基准权重'], y_pos, marker='x', s=100, color='red',
+    ], fmt='o', capsize=5, markersize=8, color=COLORS['primary'], ecolor=COLORS['primary'])
+    ax.scatter(weight_ci['基准权重'], y_pos, marker='x', s=100, color=COLORS['danger'],
               label='基准权重', zorder=5)
     ax.set_yticks(y_pos)
     ax.set_yticklabels(weight_ci['维度'])
@@ -472,8 +480,8 @@ def bootstrap_generalization(n_bootstrap=100):
     ax.errorbar(score_ci['均值'], y_pos, xerr=[
         score_ci['均值'] - score_ci['CI下界'],
         score_ci['CI上界'] - score_ci['均值']
-    ], fmt='o', capsize=5, markersize=8, color='darkorange', ecolor='darkorange')
-    ax.scatter(score_ci['基准分'], y_pos, marker='x', s=100, color='red',
+    ], fmt='o', capsize=5, markersize=8, color=COLORS['accent'], ecolor=COLORS['accent'])
+    ax.scatter(score_ci['基准分'], y_pos, marker='x', s=100, color=COLORS['danger'],
               label='基准分', zorder=5)
     ax.set_yticks(y_pos)
     ax.set_yticklabels([str(int(pid)) for pid in score_ci['方案ID']])
@@ -482,7 +490,8 @@ def bootstrap_generalization(n_bootstrap=100):
     ax.legend()
     ax.grid(True, alpha=0.3, axis='x')
 
-    fig.suptitle(f'问题一：跨数据集泛化性 - 策略 C：Bootstrap 重采样 (n={n_bootstrap})', fontsize=14, fontweight='bold')
+    fig.suptitle(q1_title(f'跨数据集泛化性 - 策略 C：Bootstrap 重采样 (n={n_bootstrap})'),
+                 fontsize=14, fontweight='bold')
     fig.tight_layout()
 
     out_fig = os.path.join(FIGURES_DIR, 'q1_generalization_bootstrap.png')

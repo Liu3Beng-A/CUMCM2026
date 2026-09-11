@@ -463,7 +463,13 @@ def _score_per_plan(data) -> pd.DataFrame:
         if len(daily_p) > 30:
             monthly = daily_p.set_index('日期').resample('ME')['消费额'].sum()
             cv_month = monthly.std() / monthly.mean() if monthly.mean() > 0 else 1
-            s_time = max(0, 100 - abs(cv_month - 0.3) * 150)
+            # 改-5：平滑曲线（指数衰减）替代硬截断
+            # 旧公式：max(0, 100 - |CV-0.3| * 150)  → CV≥1 全部 0 分，无区分度
+            # 新公式：s = 100 / (1 + k*(CV-CV_ideal)^2)
+            #       CV=0.3 时 s=100；CV=0.5 时 s≈88；CV=1.0 时 s≈55；CV=2.0 时 s≈22
+            CV_IDEAL = 0.3
+            K_PENALTY = 0.6
+            s_time = 100.0 / (1.0 + K_PENALTY * (cv_month - CV_IDEAL) ** 2)
             s_time = max(0, min(100, s_time))
         else:
             s_time = 50.0

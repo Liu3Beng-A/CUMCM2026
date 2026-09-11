@@ -14,7 +14,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 def main():
     print('=' * 60, flush=True)
-    print('问题1：投放策略合理性分析  [一键运行]', flush=True)
+    print('问题 1：投放策略合理性分析  [一键运行]', flush=True)
     print('=' * 60, flush=True)
 
     # 1) 图表
