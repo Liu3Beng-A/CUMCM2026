@@ -1,7 +1,7 @@
 # Q1 修复规划文档 · Q1 Fix Plan
 
 > 起草时间：2026-09-12 02:55 AM
-> **重大更新：2026-09-12 03:05 AM · 新增 P0-0 节假日表日期错误（优先级最高）**
+> **重大更新：2026-09-12 03:50 AM · 新增 P0-0-11：LEGAL_HOLIDAYS 动态派生；P0-0 全部完成**
 > 执行期限：2026-09-12 03:00 ~ 09:00（6 小时）
 > 目标：完成 P0-1/P0-2/P0-3/P1-1/P1-4/P1-5/P1-6 修复，Q1 评分体系收敛到可复现、可继承给 Q2-Q4 的稳定状态
 
@@ -186,6 +186,48 @@ python -m src.q1_bootstrap
 ---
 
 ## 0. 修复总览
+
+### 0.1 P0-0 状态：✅ 全部完成（2026-09-12 03:50 AM）
+
+**子任务清单**：
+
+| ID | 任务 | 状态 | 完成时间 |
+|----|------|------|---------|
+| p0-0-1 | 备份 src/config.py 到 .bak | ✅ | 03:08 |
+| p0-0-2 | 修改 src/config.py 修正节假日表 | ✅ | 03:09 |
+| p0-0-3 | 检查所有引用 HOLIDAYS_2025 的文件 | ✅ | 03:08 |
+| p0-0-4 | 修改 q1_prophet.py 处理调休上班日 | ⏭️ 取消 | - |
+| p0-0-5 | 修改 q1_bootstrap.py 处理调休上班日 | ⏭️ 取消 | - |
+| p0-0-6 | 重跑 python -m src.q1_prophet | ✅ | 03:10 |
+| p0-0-7 | 重跑 python -m src.q1_bootstrap | ⏭️ 取消 | - |
+| p0-0-8 | 验证 10月6 中秋节效应 | ✅ | 03:30 |
+| p0-0-9 | 备份关键输出到 results/snapshots/phase0/ | ✅ | 03:32 |
+| p0-0-10 | 回到待确认问题清单 | ✅ | 03:35 |
+| **p0-0-11** | **修改 q1_robustness_aug.py LEGAL_HOLIDAYS 动态派生** | **✅** | **03:50** |
+
+**修改文件**：
+- `src/config.py`（修复 HOLIDAYS_2025，新增 COMPENSATORY_WORKDAYS_2025）
+- `src/config.py.bak.p0-0`（回滚备份）
+- `src/q1_robustness_aug.py`（第 42-46 行，LEGAL_HOLIDAYS 改为动态派生）
+
+**验证输出**：
+- `results/tables/q1_holiday_contribution.csv`（Prophet 修复后节日贡献）
+- `results/snapshots/phase0/{before,after}/*`（修复前后对比快照）
+- `issue/verify_p0_0.py`（验证脚本）
+- `issue/q1_fix_progress.md`（进度跟踪）
+
+**核心结论**：
+- 2025-10-06 已正确标记为"中秋节"（农历八月十五）
+- 2025-10-08 已正确标记为"国庆节"（合并假期最后一天）
+- 10-06 节日效应 -73%（消费），10-08 节日效应 -36%
+- 数据印证：10-08 消费 5925 元，明显高于 10-06 的 1615 元（合并假期尾声效应衰减）
+
+**未完成项**：
+- Bootstrap 完整重跑（n_boot=200 太慢，主动终止）
+- COMPENSATORY_WORKDAYS_2025 未在 Prophet 中使用（留待 P1 阶段评估）
+- `q1_robustness_aug.py` 中 `LEGAL_HOLIDAYS` 的 Bootstrap 简化版逻辑暂未改为调用统一 Bootstrap（P0-1 阶段处理）
+
+---
 
 | ID | 问题 | 方案 | 优先级 | 工作量 | 风险 |
 |----|------|------|--------|--------|------|

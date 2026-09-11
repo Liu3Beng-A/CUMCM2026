@@ -38,11 +38,19 @@ ensure_dir(PAPER_DIR)
 # 节日列表（用于Prophet和Bootstrap）
 ALL_HOLIDAYS = list(HOLIDAYS_2025) + [(d, '购物节') for d in SHOPPING_FESTIVALS_2025]
 
-# 3个法定假日（用于Bootstrap简化版）
+# 3个法定假日（用于Bootstrap简化版）—— 从 HOLIDAYS_2025 动态派生，避免与 config.py 重复
+def _first_holiday(name: str):
+    """从 HOLIDAYS_2025 中取指定节日名称的第一天"""
+    for d, n in HOLIDAYS_2025:
+        if n == name:
+            return (d, n)
+    raise ValueError(f'HOLIDAYS_2025 中未找到节日：{name}')
+
+
 LEGAL_HOLIDAYS = [
-    ('2025-01-29', '春节'),
-    ('2025-05-01', '劳动节'),
-    ('2025-10-01', '国庆'),
+    _first_holiday('春节'),
+    _first_holiday('劳动节'),
+    _first_holiday('国庆'),
 ]
 
 
