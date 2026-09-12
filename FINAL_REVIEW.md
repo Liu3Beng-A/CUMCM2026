@@ -274,7 +274,7 @@
 | 问题 | 位置 | 原因 | 建议 |
 |------|------|------|------|
 | result4.xlsx使用v1 | results/excel/ | v2为最终版本 | 确认使用v2 |
-| 部分图表可能重复 | results/figures/ | q3_sensitivity.png | 删除旧版本 |
+| 部分图表可能重复 | results/figures/ | q3_sensitivity.png | ✅ 已完成：v1 已删除，v2 为唯一交付 |
 
 ### P2（建议修改）
 
@@ -317,7 +317,7 @@
 ### 9.3 醒来后优先处理的5个问题
 
 1. **确认最终Excel文件**：验证result4.xlsx使用v2版本（q4_6metrics_extended_v2.csv）
-2. **清理重复图表**：删除q3_sensitivity.png旧版本
+2. **清理重复图表**：✅ 已完成 — q3_sensitivity.png v1 旧版已删除，v2 为唯一交付
 3. **检查参考文献完整性**：确认所有引用格式正确
 4. **核对图表编号**：确保论文中所有图表引用正确
 5. **备份关键文件**：确保所有最终版本已提交到正确位置

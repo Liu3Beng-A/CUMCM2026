@@ -762,16 +762,60 @@ Y
 [2026-09-12 18:15] **A+B 全部完成**: 8 项任务 100% 完成 (A1/A2/A3/A4 + REVIEW1 + B5 等待 + B6/B7 + FINAL 文档同步) | - | OK
 [ 2 0 2 6 - 0 9 - 1 2   1 8 : 2 9 ]   * * g i t   c o m m i t   &   p u s h * * :   e 4 0 5 c 8 f   Q 3 / Q 4   v 2   ��N��VP[OS�e�]+ C o p u l a :Wof+ sQT�Ǒ�~�s+ l a m b d a ���h'`+  N�'`����+ ���e�f�e	�4 0 �e�N  3 5 0 4 L�+   |   G i t H u b   �c��[b  |   O K 
  
- [2026-09-12 21:19] **F1 ����**������ A �޸� Q3 ע�������r_reg �� cost �� click �� CVR��| - | -
-[2026-09-12 21:21] **F1 ���**��q3_data_prep/q3_milp/q3_evaluator ���� r_reg �� cost �� click �� r_reg��CVR �ھ���| 3 �ļ� | OK
-[2026-09-12 21:22] **F2 ���**��q4_evaluator.py budget Լ����Ϊ budget-0.10��23,487.92����������� | 1 �ļ� | OK
-[2026-09-12 21:23] **F3 ���**��q3_assoc_adoption.py �������˻��������ʿھ����ɹ�����ھ�����Ϊ������ | 1 �ļ� | OK
-[2026-09-12 21:24] **F4 ����**������ Q3 ����Ԥ������֤ F1 | - | -
-[2026-09-12 21:26] **F4 ���**��Q3 ����Ԥ���� + MILP + ����ȫ����ͨ | share-Pearson regs: -0.096 �� 0.691 (?) | OK
-[2026-09-12 21:27] **F3 ��֤���**���������򵥶������� all/high=8% (vs �ɹ����� 0%)��summary.json �Ѹ��� | OK
-[2026-09-12 21:28] **F5 ����**���� Q4 ��֤ F2 budget �޸� | - | -
-[2026-09-12 21:32] **F2 ��©**��tools/q4_two_stage_v2.py:171 ͬ��Ӧ�� budget-0.10 ���� | 1 �ļ� | OK
-[2026-09-12 21:33] **F5 ���**��Q4 ���׶�������ܣ��޸� tools ͬ����| ��Ͷ�� 23,487.98/23,488.02 (? �ϸ� �� Ԥ��) | OK
-[2026-09-12 21:35] **F6 ���**��paper.md �ؼ��ڶθ��£�ժҪ/��5.3.3/��5.3.4/��5.3.4-����/��5.3.6/��5.3.7/��6.2/��¼ X �� 12 ����| paper.md 1149 �� | OK
-[2026-09-12 21:36] **F6 ���**��DECISION_LOG.md ���� D-036/D-037/D-038 �������߼�¼��F1/F2/F3 �޸���| DECISION_LOG.md | OK
-[2026-09-12 21:38] **?? F1+F2+F3 ������ȫ���޸����**��Q3 ע�� share-Pearson: -0.096 �� 0.691 | Q4 Ԥ���ϸ� �� 23,488.02 | ��������Ӧ���� 0% �� 8%���������пھ���| - | OK
+ [2026-09-12 21:19] **F1 ����**������ A �޸� Q3 ע�������r_reg �� cost �� click �� CVR��| - | -
+[2026-09-12 21:21] **F1 ���**��q3_data_prep/q3_milp/q3_evaluator ���� r_reg �� cost �� click �� r_reg��CVR �ھ���| 3 �ļ� | OK
+[2026-09-12 21:22] **F2 ���**��q4_evaluator.py budget Լ����Ϊ budget-0.10��23,487.92����������� | 1 �ļ� | OK
+[2026-09-12 21:23] **F3 ���**��q3_assoc_adoption.py �������˻��������ʿھ����ɹ�����ھ�����Ϊ������ | 1 �ļ� | OK
+[2026-09-12 21:24] **F4 ����**������ Q3 ����Ԥ������֤ F1 | - | -
+[2026-09-12 21:26] **F4 ���**��Q3 ����Ԥ���� + MILP + ����ȫ����ͨ | share-Pearson regs: -0.096 �� 0.691 (?) | OK
+[2026-09-12 21:27] **F3 ��֤���**���������򵥶������� all/high=8% (vs �ɹ����� 0%)��summary.json �Ѹ��� | OK
+[2026-09-12 21:28] **F5 ����**���� Q4 ��֤ F2 budget �޸� | - | -
+[2026-09-12 21:32] **F2 ��©**��tools/q4_two_stage_v2.py:171 ͬ��Ӧ�� budget-0.10 ���� | 1 �ļ� | OK
+[2026-09-12 21:33] **F5 ���**��Q4 ���׶�������ܣ��޸� tools ͬ����| ��Ͷ�� 23,487.98/23,488.02 (? �ϸ� �� Ԥ��) | OK
+[2026-09-12 21:35] **F6 ���**��paper.md �ؼ��ڶθ��£�ժҪ/��5.3.3/��5.3.4/��5.3.4-����/��5.3.6/��5.3.7/��6.2/��¼ X �� 12 ����| paper.md 1149 �� | OK
+[2026-09-12 21:36] **F6 ���**��DECISION_LOG.md ���� D-036/D-037/D-038 �������߼�¼��F1/F2/F3 �޸���| DECISION_LOG.md | OK
+[2026-09-12 21:38] **?? F1+F2+F3 ������ȫ���޸����**��Q3 ע�� share-Pearson: -0.096 �� 0.691 | Q4 Ԥ���ϸ� �� 23,488.02 | ��������Ӧ���� 0% �� 8%���������пھ���| - | OK
+[2026-09-12 21:42] **G1 ͼ���������**�����Ŷ� 38 ��ͼ���� 4 ������ԭͼ�����������⣨����/�ɶ���/�ص�/��ɫ��| - | -
+[2026-09-12 21:44] **G2 ͼ���޸��ƻ�**������ CHART_FIX_TRACKER.md���� P0��P1��P2��P3 ˳������޸����� | CHART_FIX_TRACKER.md | -
+[2026-09-12 21:44] **G2.1 ׷�ٱ�����**��CHART_FIX_TRACKER.md ��д�� 98 �У�P0��7 + P1��12 + P2��16 + P3��3��| CHART_FIX_TRACKER.md | OK
+[2026-09-12 21:45] **G2.P0-1 �ɰ�ͼ������**��q3_sensitivity.png �� q3_sensitivity_v1_DEPRECATED.png��F1 �� r_reg ���� unit ���죬��ͼ�������󵼣� | results/figures/q3_sensitivity_v1_DEPRECATED.png | OK
+
+[2026-09-12 21:50] **G3.P0-1a 删旧图**：
+esults/figures/q3_sensitivity_v1_DEPRECATED.png → 删除（FINAL_REVIEW.md line 320 已留底）| - | OK
+[2026-09-12 21:50] **G3.P0-1b 修源代码**：src/q3_evaluator.py line 29 docstring 标 v1 已废弃 + line 146 out_path 改 q3_sensitivity_v1_DEPRECATED.png 避免误生成 | src/q3_evaluator.py 236 行 | OK
+[2026-09-12 21:50] **G3.P0-1c 新建 README**：
+esults/figures/README.md（28 行）：命名约定 + 引用规范 + 历史废弃图清单 | results/figures/README.md | OK
+[2026-09-12 21:50] **G3.P0-1d 更新 tracker**：CHART_FIX_TRACKER.md line 13 P0-1 改 ✅ + 方案描述同步（删除+改代码+新建 README）| CHART_FIX_TRACKER.md | OK
+[2026-09-12 21:50] **G3.P0-1e 更新 review**：FINAL_REVIEW.md line 277 + line 320 标 ✅ 已完成 | FINAL_REVIEW.md | OK
+[2026-09-12 21:50] **G3.P0-1 grep 排查**：除 	ools/_update_paper.py:26（失效 anchor，已执行过）+ 3 个新追踪点外，全局无 q3_sensitivity.png 残留 | - | OK
+[2026-09-12 21:50] **🟢 P0-1 全部完成**：5 动作 + 1 排查 → 可继续 P0-2 | - | OK
+[2026-09-12 22:18] **G3.P0-2a 备份 v1**：q1_baseline_rank_scatter.png → v1_DEPRECATED.png | results/figures/q1_baseline_rank_scatter_v1_DEPRECATED.png 162 KB | OK
+[2026-09-12 22:18] **G3.P0-2b 改 plot_rank_scatter**：1×1 单图 → 2×2 子图（3 散点 + 1 Spearman ρ 热力图）+ TOPSIS color 改 danger 红避免与黄框混淆 | src/q1_baseline.py 440 行 | OK
+[2026-09-12 22:18] **G3.P0-2c 修 import**：缺 seaborn → import seaborn as sns | src/q1_baseline.py | OK
+[2026-09-12 22:18] **G3.P0-2d 改调用**：main() 传 score_dict (CRITIC/等权/熵权/TOPSIS) 给 plot_rank_scatter | src/q1_baseline.py | OK
+[2026-09-12 22:18] **G3.P0-2e 跑图**：python -m src.q1_baseline 重生成 → 散点 3 子图清晰 + 4×4 热力图（对角 1.00 / TOPSIS-CR=0.80 是最低）+ Spearman 最小 0.80 阈值通过 | results/figures/q1_baseline_rank_scatter.png | OK
+[2026-09-12 22:18] **G3.P0-2f 改 tracker**：CHART_FIX_TRACKER.md line 14 P0-2 → ✅ + 修正描述（原 tracker 误判为 2×2 子图，实为 1×1）| CHART_FIX_TRACKER.md | OK
+[2026-09-12 22:18] **🟢 P0-2 全部完成**：6 动作 → 可继续 P0-3 (q1_score_radar.png) | - | OK
+[2026-09-12 22:22] **G3.P0-2g 修遮挡**：3 散点子图右下角 (r, ρ) 框 → 右上角（改 ax.text 坐标 + verticalalignment='top'）| src/q1_baseline.py 280 行附近 | OK
+[2026-09-12 22:22] **G3.P0-2h 重跑图**：python -m src.q1_baseline → 3 子图右上角白框清晰、4×4 热力图无变化 | results/figures/q1_baseline_rank_scatter.png | OK
+[2026-09-12 22:32] **G3.P0-3e 方式 3 字典化**：custom_r = {cats_0:74, cats_1:80, cats_2:72, cats_3:100} 4 框独立半径，调试 print 维度顺序 | src/q1_plots.py 437-462 | OK
+[2026-09-12 22:32] **G3.P0-3e 重跑确认**：4 框清晰、引导线干净、无遮挡 | results/figures/q1_score_radar.png | OK
+[2026-09-12 22:32] **G3.P0-3e 用户手册**：cats 顺序对照表 + 调参指引已交付，等用户手动调 custom_r | - | OK[2026-09-12 22:35] **G3.P0-3f 方式 3 增强**：custom_pos 字典升级 (半径, 角度偏移弧度)，支持上下左右挪，0.1 弧度≈5.7° | src/q1_plots.py 437-468 | OK
+[2026-09-12 22:35] **G3.P0-3f 重跑确认**：4 框位置正确，shift=0 行为与之前一致 | results/figures/q1_score_radar.png | OK[2026-09-12 23:34] **G3.P0-3g 问题诊断**：用户 cats_0/cats_2 用 ±3.00 弧度≈171° 偏移导致 cats 互换，引导线穿过圆心→等用户决定是否升级两段式引导线 + 字典回到 ±0.05~0.30 | - | -[2026-09-12 23:38] **G3.P0-3h 两段式引导线**：段1径向 [a,a]+[s,r_label]，段2弧线 linspace 30 点 → 即使用户字典仍 ±3.00 也不会穿圆心 | src/q1_plots.py 449-466 | OK
+[2026-09-12 23:38] **G3.P0-3h 根因再次提醒**：±3.00 弧度≈171° 让 cats_0/2 互换，等用户改回小偏移 | results/figures/q1_score_radar.png | OK[2026-09-12 23:43] **G3.P0-3i 标签跟随框**：去掉 ax.set_xticklabels，改用 ax.text 在 (a_eff, r_label+55) 画标签；r_label 间距 55 解决水平挨一起问题；set_ylim 0→155 | src/q1_plots.py 431-432 + 470-475 + 487 | OK
+[2026-09-12 23:43] **G3.P0-3i 效果**：左=设计质量+52.4分，右=出价策略+51.9分；数据点不动；引导线两段式不穿圆心；唯一注意点：数据点圆圈和标签位置错位，靠引导线识别 | results/figures/q1_score_radar.png | OK[2026-09-12 23:48] **G3.P0-3i 退回**：删除 ax.text 标签跟随 a_eff；恢复 set_xticklabels(cats, fontsize=11)；恢复 set_ylim(0,120)；保留 3h 两段式引导线 | src/q1_plots.py 431-432 + 455-466 + 487 | OK
+[2026-09-12 23:48] **G3.P0-3i 退回效果**：图回到 3i 之前状态，但字典 ±3.00 残留 → 框位置仍错位，等用户决定下一步 | results/figures/q1_score_radar.png | OK[2026-09-12 23:55] **G3.P0-4 三改一次性完成**：1) 圆 s=w*800→s=800 统一；2) 字典 cats_0/2 偏移 -3/+3 改 0 让数据点和框对齐（解决 51.9 错位在右）；3) 删除两段式引导线 ax.plot 段 1+段 2；保留 ax.text 数字框 | src/q1_plots.py 425-462 | OK
+[2026-09-12 23:55] **G3.P0-4 效果**：图清爽，所有分数框正贴维度标签轴线 | results/figures/q1_score_radar.png | OK[2026-09-13 00:05] **G3.P0-5 顶部底部向圆心移**：cats_1 r_label 70→66 (移 4 单位)，cats_3 r_label 93→87 (移 6 单位)；cats_0/2 保持 ±0.25 角度偏移不变 | src/q1_plots.py:439-447 | OK
+[2026-09-13 00:05] **G3.P0-5 效果**：顶底框距数据点 ~9 单位，左右框 ~21 单位，整体更紧凑 | results/figures/q1_score_radar.png | OK
+[2026-09-13 00:10] **G3.P0-6 维度名位置**：删除 set_xticklabels 默认放置，改手 ax.text 画维度名；新增字典 custom_label_r = {cats_0/2: 108, cats_1/3: 100}，顶底向圆心 -20；set_ylim 110→115 | src/q1_plots.py:432-450,460 | OK
+[2026-09-13 00:15] **G3.P0-6 实际生效**：dict custom_label_r 已加进 src/q1_plots.py:446-451，set_xticklabels([]) 关闭默认；顶底 r=100、左右 r=108 | 重跑 + 出图 | OK
+[2026-09-13 00:20] **G3.P0-7 维度名角度修正**：维度名 a_eff_text 从  + custom_pos[i][1] 改为 （标准角度，不再受 shift 影响）；ylim 115→110 | src/q1_plots.py:452-457,460 | OK[2026-09-13 00:34] **H1 备份扣分前 PNG**：当前 q1_score_radar.png（用户调过的扣分前 64.6/77.4 图） → q1_score_radar_v2_USER_LAYOUT_BEFORE_PENALTY.png（168.1 KB）| 用户视觉调整成果留底 | OK
+[2026-09-13 00:34] **H2 备份扣分前 JSON**：q1_score.json → q1_score.json.bak_pre_penalty_inject | 注入前原值留底 | OK
+[2026-09-13 00:34] **H3 注入扣分**：python -m src.q1_holiday_penalty 跑成功；投放策略与时间 77.4→47.4；综合分 64.6→50.7；grade C→D；加 original_score=77.4 + holiday_penalty 字段 | q1_score.json + q1_holiday_penalty.json | OK
+[2026-09-13 00:34] **H4 重画雷达图**：fig_score_radar(r) 读扣分后 JSON 重跑；cats[3] s=47.40；cats[0/1/2] s=52.40/57.60/51.90 不变；综合分 50.7 / D（偏差）；视觉布局（custom_pos/custom_label_r）完全保留 | q1_score_radar.png 164.5 KB | OK
+[2026-09-13 00:34] **🟢 数据切换完成**：扣分前 PNG 已留底（_v2_USER_LAYOUT_BEFORE_PENALTY），正式图为扣分后（50.7/47.4/D偏差），与 paper.md line 297 声明一致 | - | OK
+[2026-09-13 00:41] **🔍 根因诊断（用户报"跑完还是 64.6"）**：检查发现 00:34 注入扣分后 到 00:37 用户跑了一个会覆写 JSON 的脚本，导致 q1_score.json 回到扣分前 64.6/C（投放策略 77.4）。罪魁：q1_main.py:38 或 q1_plots.py:533 都会调 run_scoring() 但不调 apply_penalty_to_score() | q1_score.json + q1_score_radar.png | -
+[2026-09-13 00:41] **🔍 全部"扣分前 vs 扣分后"风险点扫描**：3 个覆写入口（q1_main/q1_plots/q1_scoring）；1 个正确入口（regen_figures.py）；正确顺序应为 run_scoring → apply_penalty → 读图脚本 | src/q1_main.py:38 + src/q1_plots.py:533 | OK
+[2026-09-13 00:41] **I1 重新注入扣分**：python -m src.q1_holiday_penalty；JSON 回到 50.7 / D（偏差）/ 投放策略 47.4 | results/tables/q1_score.json 8.2 KB | OK
+[2026-09-13 00:41] **I2 重画雷达图（直调函数，不经覆写路径）**：python -c 'fig_score_radar(r)' 读扣分后 JSON；cats[3] s=47.40；自定义 cats_3 r_label=63（用户最新调整值，保留） | results/figures/q1_score_radar.png 164.2 KB | OK
+[2026-09-13 00:41] **🟢 数据已恢复扣分后**：overall=50.7 / grade=D（偏差）/ 4 维度=52.4/57.6/51.9/47.4 | - | OK

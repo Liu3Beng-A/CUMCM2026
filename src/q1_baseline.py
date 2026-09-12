@@ -38,6 +38,7 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 from scipy import stats
+import seaborn as sns
 
 from src.utils import TABLES_DIR, FIGURES_DIR, ensure_dir
 from src.plot_style import apply_style, save_fig, COLORS
@@ -208,13 +209,14 @@ def compute_correlations(critic_scores: np.ndarray,
     return pd.DataFrame(rows)
 
 
-def plot_rank_scatter(rank_df: pd.DataFrame, plan_ids, out_path: str,
-                      corr_df: pd.DataFrame = None):
-    """绘制 4 种方法排名一致性散点图。
+def plot_rank_scatter(rank_df, plan_ids, out_path, corr_df=None,
+                      score_dict=None):
+    """绘制 2×2 子图：3 个 CRITIC vs baseline 散点 + 1 个 4×4 Spearman ρ 热力图。
 
-    X 轴：当前 CRITIC 排名（1 = 最好）
-    Y 轴：baseline 排名
-    对角线 y=x 表示完全一致；偏离越大表示排名差异越大。
+    P0-2 重构（2026-09-12）：
+    - 原版单图布局，信息密集在角落黄框，可读性差
+    - 重构为 2×2 子图，每个散点子图自带 (r, ρ) 标注
+    - 第 4 子图升级为 4×4 Spearman ρ 热力图，完整呈现方法互相一致性
 
     Parameters
     ----------
@@ -225,69 +227,99 @@ def plot_rank_scatter(rank_df: pd.DataFrame, plan_ids, out_path: str,
     out_path : str
         图片保存路径。
     corr_df : pd.DataFrame, optional
-        含 Baseline/Pearson/Spearman 三列的相关系数表（改-9）。
-        若提供，将在图右上角绘制相关系数标注框。
+        与 CRITIC 对比的 r/ρ（保留以备日志）。
+    score_dict : dict, optional
+        {方法名: 综合分向量}，4 项：CRITIC / 等权 / 熵权 / TOPSIS。
+        若提供，将计算 4×4 Spearman ρ 矩阵并在第 4 子图展示。
     """
     plt = apply_style()
-    fig, ax = plt.subplots(figsize=(10, 8))
+    fig, axes = plt.subplots(2, 2, figsize=(14, 11))
 
-    baselines = {
-        # key in plot → (column name in rank_df, color, marker)
-        '等权平均': ('等权排名',   COLORS['primary'],  'o'),
-        '熵权法':   ('熵权排名',   COLORS['secondary'], 's'),
-        'TOPSIS':   ('TOPSIS排名', COLORS['accent'],   '^'),
-    }
+    baselines = [
+        ('等权平均',   '等权排名',   COLORS['primary'],   'o'),
+        ('熵权法',     '熵权排名',   COLORS['secondary'], 's'),
+        ('TOPSIS',     'TOPSIS排名', COLORS['danger'],    '^'),  # 改用 danger 红，避免与黄底色混淆
+    ]
     critic_rank = rank_df['当前CRITIC排名'].values
+    lim_min, lim_max = 0.5, 5.5
 
-    for name, (col, color, marker) in baselines.items():
+    # ===== 前 3 个子图：CRITIC vs baseline 散点 =====
+    for ax, (name, col, color, marker) in zip(axes.flat[:3], baselines):
         y = rank_df[col].values
         ax.scatter(critic_rank, y, c=color, marker=marker,
-                   s=130, edgecolors='black', linewidths=0.8,
-                   alpha=0.85, label=name, zorder=3)
-        # 在每个点旁标方案 ID
+                   s=140, edgecolors='black', linewidths=0.8,
+                   alpha=0.85, zorder=3)
+        # 方案 ID 标签
         for i, pid in enumerate(plan_ids):
             ax.annotate(str(pid),
                         (critic_rank[i], y[i]),
                         textcoords='offset points',
-                        xytext=(8, 6), fontsize=8, color='#333333')
+                        xytext=(8, 6), fontsize=9, color='#333333',
+                        zorder=4)
+        # y=x 对角线
+        ax.plot([lim_min, lim_max], [lim_min, lim_max],
+                color='gray', linestyle='--', alpha=0.5, linewidth=1.0, zorder=1)
+        # 子图右上角标注 (r, ρ)
+        if corr_df is not None:
+            row = corr_df[corr_df['Baseline'] == name]
+            if len(row) > 0:
+                r = row['Pearson'].iloc[0]
+                rho = row['Spearman'].iloc[0]
+                ax.text(0.97, 0.97,
+                        f'Pearson r = {r:.4f}\nSpearman ρ = {rho:.2f}',
+                        transform=ax.transAxes, fontsize=10,
+                        family='sans-serif',
+                        verticalalignment='top',
+                        horizontalalignment='right',
+                        bbox=dict(boxstyle='round,pad=0.4',
+                                  facecolor='white', edgecolor='gray', alpha=0.85),
+                        zorder=5)
+        ax.set_xlim(lim_min, lim_max)
+        ax.set_ylim(lim_max, lim_min)
+        ax.set_xticks(range(1, 6))
+        ax.set_yticks(range(1, 6))
+        ax.set_xlabel('当前 CRITIC 排名（1 = 最优）', fontsize=10)
+        ax.set_ylabel(f'{name} 排名（1 = 最优）', fontsize=10)
+        ax.set_title(f'CRITIC vs {name}', fontsize=12, fontweight='bold')
+        ax.grid(True, alpha=0.3)
 
-    # 对角线
-    lim_min, lim_max = 0.5, 5.5
-    ax.plot([lim_min, lim_max], [lim_min, lim_max],
-            color='red', linestyle='--', alpha=0.5, linewidth=1.2,
-            label='y = x（完全一致）')
+    # ===== 第 4 子图：4×4 Spearman ρ 热力图 =====
+    ax4 = axes.flat[3]
+    if score_dict is not None and len(score_dict) >= 2:
+        method_names = list(score_dict.keys())
+        n_m = len(method_names)
+        rho_matrix = np.ones((n_m, n_m))
+        for i in range(n_m):
+            for j in range(n_m):
+                if i < j:
+                    rho, _ = stats.spearmanr(score_dict[method_names[i]],
+                                             score_dict[method_names[j]])
+                    rho_matrix[i, j] = rho
+                    rho_matrix[j, i] = rho
+        sns.heatmap(rho_matrix,
+                    annot=True, fmt='.3f',
+                    cmap='RdBu_r', vmin=0.7, vmax=1.0,
+                    xticklabels=method_names,
+                    yticklabels=method_names,
+                    cbar_kws={'label': 'Spearman ρ'},
+                    square=True, linewidths=1, linecolor='white',
+                    annot_kws={'fontsize': 11, 'fontweight': 'bold'},
+                    ax=ax4)
+        ax4.set_title('4 种方法的 Spearman ρ 矩阵', fontsize=12, fontweight='bold')
+        ax4.set_xlabel('')
+        ax4.set_ylabel('')
+        # 轴标签旋转
+        plt.setp(ax4.get_xticklabels(), rotation=20, ha='right', fontsize=10)
+        plt.setp(ax4.get_yticklabels(), rotation=0, fontsize=10)
+    else:
+        ax4.text(0.5, 0.5, '缺少数数据', transform=ax4.transAxes,
+                 ha='center', va='center', fontsize=14, color='gray')
+        ax4.set_title('4×4 Spearman ρ 矩阵（无数据）', fontsize=12)
 
-    ax.set_xlim(lim_min, lim_max)
-    ax.set_ylim(lim_max, lim_min)  # 反转：排名 1 在顶部
-    ax.set_xticks(range(1, 6))
-    ax.set_yticks(range(1, 6))
-    ax.set_xlabel('当前 CRITIC 排名（1 = 最优）', fontsize=11)
-    ax.set_ylabel('Baseline 排名（1 = 最优）', fontsize=11)
-    ax.set_title('问题 1：4 种评分方法的方案排名一致性', fontsize=13, fontweight='bold')
-    ax.grid(True, alpha=0.3)
-
-    # 改-9：在图右下角加 Pearson/Spearman 相关系数标注框
-    if corr_df is not None and len(corr_df) > 0:
-        corr_lines = ['与 CRITIC 排名相关系数：']
-        for _, row in corr_df.iterrows():
-            corr_lines.append(
-                f'  {row["Baseline"]:<8}  '
-                f'r = {row["Pearson"]:.4f},  ρ = {row["Spearman"]:.2f}'
-            )
-        corr_text = '\n'.join(corr_lines)
-        ax.text(0.97, 0.03, corr_text,
-                transform=ax.transAxes,
-                fontsize=9, family='sans-serif',
-                verticalalignment='bottom',
-                horizontalalignment='right',
-                bbox=dict(boxstyle='round,pad=0.5',
-                          facecolor='#FFFFE0', edgecolor='gray', alpha=0.9))
-
-    ax.legend(loc='upper right', fontsize=10, framealpha=0.9)
-
-    fig.tight_layout()
-    # 直接保存到绝对路径（绕过 save_fig 的默认目录）
-    fig.savefig(out_path, dpi=200, bbox_inches='tight')
+    fig.suptitle('问题 1：4 种评分方法的方案排名一致性',
+                 fontsize=15, fontweight='bold', y=0.995)
+    fig.tight_layout(rect=[0, 0, 1, 0.97])
+    fig.savefig(out_path, dpi=150, bbox_inches='tight')
     plt.close(fig)
     print(f'[fig] saved -> {out_path}', flush=True)
 
@@ -373,7 +405,15 @@ def run_baseline_comparison():
     # ===== 排名散点图 =====
     rank_df = cmp_df[['方案ID', '当前CRITIC排名', '等权排名', '熵权排名', 'TOPSIS排名']]
     ensure_dir(os.path.dirname(OUT_FIG))
-    plot_rank_scatter(rank_df, plan_ids, OUT_FIG, corr_df=corr_df)
+    # P0-2 重构：传 4 个综合分的 dict，第 4 子图用其算 4×4 Spearman ρ 矩阵
+    score_dict = {
+        'CRITIC':  critic_scores.values,
+        '等权平均': s_equal.values,
+        '熵权法':   s_entropy.values,
+        'TOPSIS':  s_topsis.values,
+    }
+    plot_rank_scatter(rank_df, plan_ids, OUT_FIG, corr_df=corr_df,
+                      score_dict=score_dict)
 
     # ===== 检查硬指标 =====
     min_spearman = corr_df['Spearman'].min()

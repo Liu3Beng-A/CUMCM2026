@@ -178,19 +178,38 @@ def gaussian_copula_sample(corr_matrix, log_stats, factors, units, n_scenarios=1
 
 
 def plot_correlation_heatmap(corr_matrix, factors, out_path):
+    """改-P0-5：
+    1) 用 vmin=-0.5, vmax=1.0 聚焦实际数据范围（避免色阶过于集中在高值区）
+    2) 给完全共线对 (|ρ|>=0.95) 加 ★ 标注
+    3) 数值文本根据对比度自动黑白
+    """
     apply_style()
-    fig, ax = plt.subplots(figsize=(8, 6))
-    im = ax.imshow(corr_matrix.values, cmap='RdBu_r', vmin=-1, vmax=1)
+    fig, ax = plt.subplots(figsize=(8.5, 7))
+    # 改-P0-5：聚焦实际数据范围（max 实际值 ~1.0, min ~0.20），不用全 -1~1
+    vmin, vmax = -0.5, 1.0
+    im = ax.imshow(corr_matrix.values, cmap='RdBu_r', vmin=vmin, vmax=vmax)
     ax.set_xticks(range(len(factors)))
     ax.set_yticks(range(len(factors)))
-    ax.set_xticklabels(factors, rotation=45, ha='right')
-    ax.set_yticklabels(factors)
+    ax.set_xticklabels(factors, rotation=35, ha='right', fontsize=10)
+    ax.set_yticklabels(factors, fontsize=10)
     for i in range(len(factors)):
         for j in range(len(factors)):
-            ax.text(j, i, f'{corr_matrix.values[i,j]:.2f}', ha='center', va='center', fontsize=9,
-                    color='white' if abs(corr_matrix.values[i,j]) > 0.5 else 'black')
-    plt.colorbar(im, ax=ax, label='Spearman 相关系数')
-    ax.set_title('Q4 · 6 因子相关系数矩阵（历史 30 天单元级估算）', fontsize=12)
+            v = corr_matrix.values[i, j]
+            # 改-P0-5：给完全共线对 (|ρ|≥0.95) 加 ★
+            star = '★' if abs(v) >= 0.95 and i != j else ''
+            # 文字颜色：|v - midpoint| > 0.3 时白色，否则黑色
+            midpoint = (vmin + vmax) / 2
+            color = 'white' if abs(v - midpoint) > 0.3 else 'black'
+            ax.text(j, i, f'{v:.2f}{star}', ha='center', va='center', fontsize=10,
+                    color=color, fontweight='bold' if abs(v) >= 0.7 else 'normal')
+    cbar = plt.colorbar(im, ax=ax, label='Spearman 相关系数')
+    cbar.ax.tick_params(labelsize=9)
+    ax.set_title('Q4 · 6 因子相关系数矩阵（历史 30 天单元级 log-normal 估算）\n'
+                 '★ 标注 |ρ|≥0.95 的完全共线对', fontsize=12, fontweight='bold')
+    # 改-P0-5：加共线对说明
+    ax.text(0.02, -0.18, f'注：clicks↔browses ρ=1.00（browses=clicks×3.712 派生代理，故完全共线）；'
+                          f'top_imp_pos_inv↔top_imp_pos ρ=1.00（取倒数派生）',
+            transform=ax.transAxes, fontsize=8, color='gray', ha='left', va='top')
     plt.tight_layout()
     plt.savefig(out_path, dpi=120, bbox_inches='tight')
     plt.close()

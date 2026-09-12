@@ -23,11 +23,15 @@ Q3 · 代理精度校验 + 敏感性分析（§2.3 + §2.2.2）
 - `results/excel/result3.xlsx`：基线解
 - `data/processed/q3/q3_optimal_plan.pkl`：基线 plan
 
-**主要输出**：
+**主要输出**（v1 · 已废弃）：
 - `results/tables/q3_proxy_accuracy.csv`：比值表
 - `results/tables/q3_proxy_accuracy.json`：汇总
-- `results/figures/q3_sensitivity.png`：敏感性曲线
-- `results/tables/q3_sensitivity_summary.csv`：15 场景对比
+- `results/figures/q3_sensitivity_v1_DEPRECATED.png`：v1 敏感性曲线（含 r_reg 扰动，代理失效）
+- `results/tables/q3_sensitivity_summary.csv`：v1 15 场景对比
+
+**⚠️ v2 替代（2026-09-12）**：本文件已被 `tools/q3_sensitivity_v2.py` 替代，
+v2 删 r_reg + 加 click/browse 权重 3 档，输出 `q3_sensitivity_v2.png`。
+如需重新跑敏感性分析，请使用 v2 版本。
 """
 import os
 import sys
@@ -143,7 +147,7 @@ def plot_sensitivity(sens_df):
         ax.grid(alpha=0.3)
 
     plt.tight_layout()
-    out_path = os.path.join(FIGURES_DIR, 'q3_sensitivity.png')
+    out_path = os.path.join(FIGURES_DIR, 'q3_sensitivity_v1_DEPRECATED.png')  # v1 已废弃（F1 重构），如运行会生成 DEPRECATED 命名
     plt.savefig(out_path, dpi=120, bbox_inches='tight')
     plt.close()
     print(f"  -> {out_path}")

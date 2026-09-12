@@ -401,7 +401,11 @@ def fig_time_pattern(data):
 
 
 def fig_score_radar(result):
-    """5.1.6 综合评分雷达图"""
+    """5.1.6 综合评分雷达图
+
+    改-P0-3：移除 xticklabels 中的 "分数+权重"（会与端点气泡重叠），
+    改为在端点外侧用 annotate 单独标注分数 + 权重。
+    """
     plt = apply_style()
     from math import pi
 
@@ -420,14 +424,55 @@ def fig_score_radar(result):
     ax.fill(angles, scores_plot, color=COLORS['primary'], alpha=0.25)
     ax.plot(angles, scores_plot, color=COLORS['primary'], linewidth=2)
 
-    # 权重气泡
-    for i, (a, s, w) in enumerate(zip(angles[:-1], scores, weights)):
-        ax.scatter([a], [s], s=w * 800, color=COLORS['accent'], alpha=0.6, edgecolors='black', zorder=5)
+    # 数据点（统一面积大小，不显示权重）
+    for a, s in zip(angles[:-1], scores):
+        ax.scatter([a], [s], s=90, color=COLORS['accent'], alpha=0.6, edgecolors='black', zorder=5)
 
+    # 维度名（不带分数/权重，避免重叠）
+    # 改-G3.P0-6：手 ax.text 画维度名，可独立控制每个半径
     ax.set_xticks(angles[:-1])
-    ax.set_xticklabels([f'{c}\n({s:.1f}分, w={w})' for c, s, w in zip(cats, scores, weights)],
-                       fontsize=10)
-    ax.set_ylim(0, 100)
+    ax.set_xticklabels([])  # 关闭默认标签
+
+    # 字典 key: cats_0..3
+    # 字典 value: (半径, 角度偏移弧度)
+    #   - 半径：距数据点的距离（越大越远）
+    #   - 角度偏移：正值=顺时针挪，负值=逆时针挪
+    # 改-G3.P0-4：所有偏移=0，框直接画在数据点正外侧（避免互换问题）
+    custom_pos = {
+        'cats_0': (74,  -0.25),   # 右侧 设计质量与创意
+        'cats_1': (70,  0.00),   # 顶部 关键词管理与运用（70→66，向圆心 -4）
+        'cats_2': (72,  0.25),   # 左侧 出价策略与预算
+        'cats_3': (63,  0.00),   # 底部 投放策略与时间（93→87，向圆心 -6）
+    }
+
+    # 维度名自定义半径（数字越小越靠近圆心）
+    custom_label_r = {
+        'cats_0': 110,  # 右侧 设计质量与创意
+        'cats_1': 105,  # 顶部 关键词管理与运用（向圆心）
+        'cats_2': 110,  # 左侧 出价策略与预算
+        'cats_3': 105,  # 底部 投放策略与时间（向圆心）
+    }
+    for i, (a, c) in enumerate(zip(angles[:-1], cats)):
+        r_text = custom_label_r[f'cats_{i}']
+        a_eff_text = a  # 维度名走标准角度（不用 shift，让左右严格在水平线）
+        ax.text(a_eff_text, r_text, c,
+                ha='center', va='center',
+                fontsize=11, fontweight='bold')
+    for i, (a, s, w, c) in enumerate(zip(angles[:-1], scores, weights, cats)):
+        r_label, angle_shift = custom_pos[f'cats_{i}']
+        a_eff = a + angle_shift  # 应用角度偏移（当前字典全 0，a_eff==a）
+        print(f'[radar] cats[{i}] = "{c}" → a={a:.4f} rad ({a*180/3.1416:.1f}°), shift={angle_shift:+.3f}→a_eff={a_eff:.4f}, s={s:.2f}, r_label={r_label}', flush=True)
+        # 改-G3.P0-4：删除引导线（ax.plot 两段），改为仅 ax.text 数字框
+        # 数字标签（白底框，位置 = 极坐标 (a_eff, r_label)）
+        ax.text(a_eff, r_label,
+                f'{s:.1f}分 (w={w*100:.1f}%)',
+                ha='center', va='center',
+                fontsize=9, color='#222',
+                bbox=dict(boxstyle='round,pad=0.2',
+                          facecolor='white', edgecolor='#666', alpha=0.95, linewidth=0.8),
+                zorder=5)
+
+    ax.set_ylim(0, 120)  # 留出标注空间（最大维度名 r=108）
     ax.set_yticks([20, 40, 60, 80, 100])
     ax.set_yticklabels(['20', '40', '60', '80', '100'], fontsize=8)
     ax.set_title(f'问题 1：SEM投放策略合理性综合评分雷达图\n综合得分: {result["overall_score"]} 分 / {result["grade"]}',
@@ -435,6 +480,8 @@ def fig_score_radar(result):
     ax.grid(True)
 
     fig.tight_layout()
+    # 改-P0-3：留出左右两侧标注空间
+    fig.subplots_adjust(left=0.18, right=0.82)
     save_fig(fig, 'q1_score_radar')
     plt.close(fig)
 

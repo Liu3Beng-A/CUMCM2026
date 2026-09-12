@@ -131,7 +131,14 @@ def compute_adoption(plan, rules):
 
 
 def plot_network_with_solution(rules, plan, out_path, top_edges=50):
-    """关联网络图：激活词高亮（红），未激活词（蓝）"""
+    """关联网络图：激活词高亮（红），未激活词（蓝）
+
+    改-P0-4：节点标签过密导致互相压字。改为：
+      1) 只标 top-N (N=20) 激活度最高的关键词标签
+      2) 其余节点用小圆点（无标签）
+      3) 增大节点尺寸 + 边粗细
+      4) 使用 kamada_kawai_layout（更适合稀疏图）
+    """
     import networkx as nx
     apply_style()
     G = nx.Graph()
@@ -142,24 +149,53 @@ def plot_network_with_solution(rules, plan, out_path, top_edges=50):
         G.add_edge(a, b, weight=float(r['lift']), metric=r.get('metric', 'cosine'))
 
     fig, ax = plt.subplots(figsize=(14, 10))
-    pos = nx.spring_layout(G, k=0.5, seed=42)
+
+    # 选择更稳定的布局（kamada_kawai 对稀疏图友好，节点少时更清晰）
+    n_nodes = G.number_of_nodes()
+    try:
+        if n_nodes <= 100:
+            pos = nx.kamada_kawai_layout(G)
+        else:
+            pos = nx.spring_layout(G, k=0.5, seed=42)
+    except Exception:
+        pos = nx.spring_layout(G, k=0.5, seed=42)
+
     # 节点颜色：激活=red, 未激活=lightblue
-    node_colors = ['#E63946' if n in activated_kws else '#A8DADC' for n in G.nodes()]
-    nx.draw_networkx_nodes(G, pos, node_size=180, node_color=node_colors, ax=ax,
-                           edgecolors='black', linewidths=0.5)
+    activated_nodes = [n for n in G.nodes() if n in activated_kws]
+    inactivated_nodes = [n for n in G.nodes() if n not in activated_kws]
+
+    # 画激活节点（更大、红色）
+    nx.draw_networkx_nodes(G, pos, nodelist=activated_nodes,
+                           node_size=380, node_color='#E63946', ax=ax,
+                           edgecolors='black', linewidths=0.8, alpha=0.9)
+    # 画未激活节点（较小、浅蓝）
+    nx.draw_networkx_nodes(G, pos, nodelist=inactivated_nodes,
+                           node_size=120, node_color='#A8DADC', ax=ax,
+                           edgecolors='gray', linewidths=0.4, alpha=0.7)
+    # 边
     nx.draw_networkx_edges(G, pos,
-                           width=[d['weight'] * 1.5 for _, _, d in G.edges(data=True)],
+                           width=[max(d['weight'] * 2.0, 0.3) for _, _, d in G.edges(data=True)],
                            alpha=0.5, edge_color='gray', ax=ax)
-    nx.draw_networkx_labels(G, pos, font_size=7, ax=ax)
-    ax.set_title(f'Q3 关联网络（MILP 激活词标红，共 {len(activated_kws)} 词激活）', fontsize=12)
+
+    # 改-P0-4：只标 top-20 节点（按 degree 排序），避免密集重叠
+    degrees = dict(G.degree())
+    top_nodes_for_labels = sorted(degrees, key=degrees.get, reverse=True)[:20]
+    labels = {n: str(n) for n in top_nodes_for_labels}
+    nx.draw_networkx_labels(G, pos, labels=labels, font_size=9,
+                            font_weight='bold', ax=ax,
+                            bbox=dict(boxstyle='round,pad=0.15',
+                                      facecolor='white', edgecolor='black', alpha=0.85))
+
+    ax.set_title(f'Q3 关联网络（MILP 激活词标红，{len(activated_nodes)} 激活 / {len(G.nodes())} 总节点；标签=top-20 度中心节点）',
+                 fontsize=12, fontweight='bold')
     ax.axis('off')
     # 图例
     from matplotlib.patches import Patch
     legend_elems = [
-        Patch(facecolor='#E63946', label=f'激活词 ({len([n for n in G.nodes() if n in activated_kws])})'),
-        Patch(facecolor='#A8DADC', label=f'未激活词 ({len([n for n in G.nodes() if n not in activated_kws])})'),
+        Patch(facecolor='#E63946', label=f'激活词 ({len(activated_nodes)})', edgecolor='black'),
+        Patch(facecolor='#A8DADC', label=f'未激活词 ({len(inactivated_nodes)})', edgecolor='gray'),
     ]
-    ax.legend(handles=legend_elems, loc='upper right')
+    ax.legend(handles=legend_elems, loc='upper right', fontsize=11, framealpha=0.95)
     plt.tight_layout()
     plt.savefig(out_path, dpi=120, bbox_inches='tight')
     plt.close()
