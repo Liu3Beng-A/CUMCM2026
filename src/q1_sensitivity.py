@@ -217,8 +217,115 @@ def run_sensitivity(perturb_range=0.20, n_steps=9):
     save_fig(fig, 'q1_sensitivity_curves', subdir='results')
     plt.close(fig)
 
+    # ===== P1-4: CRITIC vs 业务权重比例敏感性 =====
+    run_mix_ratio_sensitivity(scores, plan_scores, weights_res)
+
     print('\n=== 敏感性分析完成 ===', flush=True)
     return summary_df
+
+
+def run_mix_ratio_sensitivity(scores, plan_scores, weights_res):
+    """P1-4：CRITIC vs 业务 比例敏感性曲线
+
+    检验"70:30 (CRITIC:业务)" 是否稳健：
+    - α = 0.0  → 纯业务权重
+    - α = 0.3  → 30%CRITIC + 70%业务（即原 70:30）
+    - α = 0.5  → 50:50
+    - α = 0.7  → 70%CRITIC + 30%业务（即原 30:70）
+    - α = 1.0  → 纯 CRITIC
+
+    期望：综合分标准差变化 < 30% → 证明 70:30 选择稳健。
+    """
+    print('\n=== P1-4: CRITIC:业务 比例敏感性 ===', flush=True)
+
+    critic_w = weights_res['critic_weights']        # CRITIC 权重 dict
+    subj_w   = weights_res['subjective_weights']   # 业务权重 dict
+
+    dim_names = list(scores.keys())
+    score_vec = np.array([scores[d] for d in dim_names])
+    critic_vec = np.array([critic_w[d] for d in dim_names])
+    subj_vec   = np.array([subj_w[d]   for d in dim_names])
+
+    ratios = np.linspace(0.0, 1.0, 11)   # 0.0, 0.1, ..., 1.0
+    rows = []
+    plan_ids = list(plan_scores.index)
+    plan_score_matrix = plan_scores.values   # 5×4
+
+    for r in ratios:
+        mixed_vec = r * critic_vec + (1 - r) * subj_vec
+        mixed_vec = mixed_vec / mixed_vec.sum()
+
+        # 整体综合分
+        overall = float(np.dot(mixed_vec, score_vec))
+
+        # 各方案综合分
+        plan_overall = plan_score_matrix @ mixed_vec
+        plan_overall_std = float(plan_overall.std())
+
+        rows.append({
+            'CRITIC占比 α':   round(r, 2),
+            '综合评分(全公司)': round(overall, 4),
+            '方案综合分标准差': round(plan_overall_std, 4),
+            '方案综合分均值':   round(float(plan_overall.mean()), 4),
+            '方案综合分极差':   round(float(plan_overall.max() - plan_overall.min()), 4),
+        })
+
+    sens_df = pd.DataFrame(rows)
+
+    out_csv = os.path.join(TABLES_DIR, 'q1_mix_ratio_sensitivity.csv')
+    sens_df.to_csv(out_csv, index=False, encoding='utf-8-sig')
+    print(f'[save] {out_csv}', flush=True)
+
+    # 打印关键节点
+    print('\n关键节点：', flush=True)
+    for r_label, r_val in [('纯业务', 0.0), ('α=0.3 (原70:30)', 0.3), ('50:50', 0.5), ('α=0.7 (原30:70)', 0.7), ('纯CRITIC', 1.0)]:
+        row = sens_df[sens_df['CRITIC占比 α'].round(2) == round(r_val, 2)]
+        if len(row) > 0:
+            r = row.iloc[0]
+            print(f'  {r_label:15s} 综合分={r["综合评分(全公司)"]:.2f}, 方案标准差={r["方案综合分标准差"]:.2f}, 极差={r["方案综合分极差"]:.2f}', flush=True)
+
+    # 评估稳健性
+    overall_range = sens_df['综合评分(全公司)'].max() - sens_df['综合评分(全公司)'].min()
+    plan_std_range = sens_df['方案综合分标准差'].max() - sens_df['方案综合分标准差'].min()
+    overall_pct = overall_range / sens_df['综合评分(全公司)'].mean() * 100
+
+    print(f'\n  综合评分极差：{overall_range:.2f} ({overall_pct:.2f}%)', flush=True)
+    print(f'  方案标准差极差：{plan_std_range:.4f}', flush=True)
+
+    if overall_pct < 5:
+        verdict = '非常稳健'
+    elif overall_pct < 15:
+        verdict = '稳健'
+    elif overall_pct < 30:
+        verdict = '一般稳健'
+    else:
+        verdict = '不够稳健 - 建议重新审视 70:30 选择'
+
+    print(f'  评估：70:30 选择{verdict}', flush=True)
+
+    # ===== 绘图：综合分 vs α 曲线 =====
+    plt = apply_style()
+    fig, ax = plt.subplots(figsize=(11, 6))
+    ax.plot(sens_df['CRITIC占比 α'], sens_df['综合评分(全公司)'],
+            marker='o', color=COLORS['primary'], linewidth=2,
+            label='综合评分 (全公司)')
+    ax.axvline(0.7, color=COLORS['accent'], linestyle='--', alpha=0.7,
+               label='原 α=0.7（CRITIC 主导）')
+    ax.axvline(0.3, color=COLORS['danger'], linestyle='--', alpha=0.7,
+               label='原 α=0.3（业务 主导）')
+    ax.set_xlabel('CRITIC 占比 α', fontsize=11)
+    ax.set_ylabel('综合评分（全公司）', fontsize=11)
+    ax.set_title(f'问题 1：CRITIC vs 业务 比例敏感性 (P1-4)\n'
+                 f'极差={overall_range:.2f} ({overall_pct:.2f}%) → {verdict}',
+                 fontsize=13, fontweight='bold')
+    ax.legend(loc='best', fontsize=10)
+    ax.grid(True, alpha=0.3)
+    ax.set_xticks(np.arange(0, 1.01, 0.1))
+    fig.tight_layout()
+    save_fig(fig, 'q1_mix_ratio_curve', subdir='results')
+    plt.close(fig)
+
+    return sens_df, verdict, overall_pct
 
 
 if __name__ == '__main__':

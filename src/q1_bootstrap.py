@@ -51,7 +51,7 @@ def make_holidays_df(holidays):
 
 def _bootstrap_one_holiday(daily_series, value_col, holiday_date_str,
                            holiday_name, n_boot=200, window_days=1, seed=42):
-    """单个节日的 Bootstrap CI
+    """单个节日的 Bootstrap CI（Prophet-based）
 
     Returns
     -------
@@ -195,6 +195,8 @@ def run_bootstrap(n_boot=200, n_holidays=None, value_cols=('总消费额', '新�
                 rows.append(r)
 
     df = pd.DataFrame(rows)
+    # P1-5：BH FDR 校正
+    df = apply_fdr_correction(df, p_col='p值(双侧)')
     out_csv = os.path.join(TABLES_DIR, 'q1_bootstrap_ci.csv')
     df.to_csv(out_csv, index=False, encoding='utf-8-sig')
     print(f'\n[save] {out_csv}', flush=True)
@@ -257,6 +259,42 @@ def _plot_bootstrap_ci(df, n_boot=100, value_cols=('总消费额', '新注册数
     save_fig(fig, 'q1_bootstrap_ci', subdir='results')
     plt.close(fig)
     return df
+
+
+# 公共别名（P0-1: 让 q1_robustness_aug.py 可直接 import 复用）
+bootstrap_one_holiday = _bootstrap_one_holiday
+
+
+# ============ P1-5: BH FDR 多重比较校正 ============
+def apply_fdr_correction(df, p_col='p值(双侧)', alpha=0.05):
+    """对 Bootstrap p 值做 BH FDR 校正
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        含 p 值列的 DataFrame
+    p_col : str
+        p 值列名
+    alpha : float
+        FDR 显著性水平
+
+    Returns
+    -------
+    pd.DataFrame : 新增 'p_corrected' 和 'significant_fdr' 列
+    """
+    from statsmodels.stats.multitest import multipletests
+    pvals = df[p_col].values
+    valid_mask = ~np.isnan(pvals)
+    reject = np.zeros(len(pvals), dtype=bool)
+    p_corrected = np.full(len(pvals), np.nan)
+    if valid_mask.sum() > 0:
+        _, p_corr, _, _ = multipletests(pvals[valid_mask], alpha=alpha, method='fdr_bh')
+        p_corrected[valid_mask] = p_corr
+        reject[valid_mask] = (p_corr < alpha)
+    out = df.copy()
+    out['p_corrected'] = p_corrected
+    out['significant_fdr'] = reject
+    return out
 
 
 if __name__ == '__main__':

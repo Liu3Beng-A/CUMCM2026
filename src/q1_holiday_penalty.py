@@ -169,8 +169,10 @@ def compute_penalty_aggregated(bootstrap_csv_path=None):
         if len(sub) == 0:
             continue
 
-        # 严格聚合规则（与 docs 完全一致）：以"天"为单位，每天的"消费 + 注册"两个指标都 p<0.05 + 负贡献才算"显著天"
         days = sorted(sub['日期'].unique())
+        # 严格聚合规则（与 docs 完全一致）：以"天"为单位，每天的"消费 + 注册"两个指标都 p<0.05 + 负贡献才算"显著天"
+        # P1-5: 优先用 FDR 校正后的显著性（避免多重比较膨胀）
+        sig_col = 'significant_fdr' if 'significant_fdr' in sub.columns else 'p值(双侧)'
         sig_days = 0
         for d in days:
             day_df = sub[sub['日期'] == d]
@@ -178,8 +180,13 @@ def compute_penalty_aggregated(bootstrap_csv_path=None):
             reg_row = day_df[day_df['指标'] == '新注册数']
             if len(cost_row) == 0 or len(reg_row) == 0:
                 continue
-            cost_sig = (cost_row.iloc[0]['p值(双侧)'] < 0.05) and (cost_row.iloc[0]['均值差'] < 0)
-            reg_sig  = (reg_row.iloc[0]['p值(双侧)']  < 0.05) and (reg_row.iloc[0]['均值差']  < 0)
+            # 用 FDR 校正显著性（若列存在），否则退回原始 p<0.05
+            cost_sig = (bool(cost_row.iloc[0].get('significant_fdr', False))
+                        if sig_col == 'significant_fdr'
+                        else (cost_row.iloc[0]['p值(双侧)'] < 0.05)) and (cost_row.iloc[0]['均值差'] < 0)
+            reg_sig  = (bool(reg_row.iloc[0].get('significant_fdr', False))
+                        if sig_col == 'significant_fdr'
+                        else (reg_row.iloc[0]['p值(双侧)']  < 0.05)) and (reg_row.iloc[0]['均值差']  < 0)
             if cost_sig and reg_sig:
                 sig_days += 1
 
@@ -203,8 +210,11 @@ def compute_penalty_aggregated(bootstrap_csv_path=None):
         reg_diff = round(float(reg_sub['均值差'].mean()), 2) if len(reg_sub) > 0 else None
         avg_p = round(float(sub['p值(双侧)'].mean()), 3)
 
+        # P1-5: 优先用 FDR 校正显著性（避免多重比较膨胀）
+        sig_count = ((sub['significant_fdr'] == True).sum() if 'significant_fdr' in sub.columns
+                     else (sub['p值(双侧)'] < 0.05).sum())
         total_tests += len(sub)
-        total_sig += (sub['p值(双侧)'] < 0.05).sum()
+        total_sig += int(sig_count)
 
         if penalty > 0:
             total_penalty += penalty
@@ -213,7 +223,7 @@ def compute_penalty_aggregated(bootstrap_csv_path=None):
                 '节日': holiday,
                 '窗口': f'{start} ~ {end}（{window_days} 天）',
                 '总检验数': len(sub),
-                '显著数': int((sub['p值(双侧)'] < 0.05).sum()),
+                '显著数': int(sig_count) if not isinstance(sig_count, pd.Series) else int(sig_count.sum()),
                 '显著性比例': f'{int(sig_ratio*100)}%',
                 '消费平均差': cost_diff,
                 '注册平均差': reg_diff,
@@ -228,16 +238,19 @@ def compute_penalty_aggregated(bootstrap_csv_path=None):
 
     return {
         'total_penalty': total_penalty,
-        'method': '按节日聚合的 Bootstrap 显著性分级扣分（全量 37 节日 × 100 次）',
+        'method': '按节日聚合 + BH FDR 校正的 Bootstrap 显著性分级扣分',
         'summary': summary,
         'details': details,
         'stat': {
             '总检验数': total_tests,
-            '显著数': total_sig,
+            '显著数(原始 p<0.05)': total_sig,
             '显著率': f'{int(total_sig/total_tests*100) if total_tests else 0}%',
             'n_boot_target': 100,
             'n_boot_valid_min': n_boot_min,
             'n_boot_valid_max': n_boot_max,
+            'fdr_applied': True,
+            'fdr_method': 'BH (Benjamini-Hochberg)',
+            'fdr_alpha': 0.05,
         },
     }
 

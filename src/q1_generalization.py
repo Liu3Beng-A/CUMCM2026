@@ -236,11 +236,17 @@ def time_split_validation():
 
 
 # =============================================================================
-# 策略 B：留一方案交叉验证
+# 策略 B：权重稳健性检验（前称"LOO-CV"，P0-2 重命名）
 # =============================================================================
 
-def loo_cross_validation():
-    """5 折留一交叉验证
+def weight_robustness_check():
+    """权重稳健性检验（前称 "LOO-CV"，P0-2 重命名 + 重定义）
+
+    重要说明（P0-2）：原名"留一交叉验证"易误导——该方法检验的是
+    "CRITIC 权重对方案的稳健性"，并非"对未见数据的泛化能力"。
+    5 个方案排名完全准确（ρ=1.00）是 CRITIC 方法本身特性，并不证明泛化。
+
+    真正的泛化测试见 time_split_validation()（策略 A）。
 
     每次剔除一个方案，用剩余 4 个方案的得分矩阵训练 CRITIC 权重，
     然后预测被剔除方案的排名。与实际排名对比。
@@ -571,7 +577,7 @@ def run_generalization():
     time_split_df, monthly_df, avg_error_pct = time_split_validation()
 
     # 策略 B：留一方案交叉验证
-    loo_df, rho, p_value = loo_cross_validation()
+    loo_df, rho, p_value = weight_robustness_check()
 
     # 策略 C：Bootstrap 重采样
     weight_ci, score_ci, avg_weight_ci, avg_score_ci = bootstrap_generalization(n_bootstrap=100)
@@ -581,7 +587,8 @@ def run_generalization():
     print('跨数据集泛化性检验汇总', flush=True)
     print('=' * 60, flush=True)
     print(f'策略 A（时间切分）：关键节日预测平均误差 {avg_error_pct:.2f}%', flush=True)
-    print(f'策略 B（留一交叉验证）：Spearman ρ = {rho:.4f} (p = {p_value:.4f})', flush=True)
+    print(f'策略 B（权重稳健性，4-方案CRITIC 留一）：Spearman ρ = {rho:.4f} (p = {p_value:.4f})', flush=True)
+    print(f'  注：策略 B 仅验证 CRITIC 权重对方案变动的稳健性，并非真正泛化', flush=True)
     print(f'策略 C（Bootstrap）：权重平均 CI 宽度 {avg_weight_ci:.4f}，评分平均 CI 宽度 {avg_score_ci:.2f}', flush=True)
 
     # 结论

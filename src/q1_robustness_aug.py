@@ -65,13 +65,19 @@ def make_holidays_df(holidays):
 
 
 def find_aug_anomaly(daily):
-    """步骤1：定位8月异常日（Z-Score > 3，取最大消费额者）
-    
+    """步骤1：基于 Prophet 残差 Z-Score 定位异常日（P0-3 修改）
+
+    步骤：
+    1. 用 Prophet 反事实模型（不含节假日）拟合全年日消费额
+    2. 计算每日残差 residual = 实际值 - yhat
+    3. 残差的 Z-Score = residual / σ_residual
+    4. 找 |Z| 最大的日期（异常度最大）
+
     Parameters
     ----------
     daily : pd.DataFrame
         日级全量数据，含 '日期'、'总消费额' 列
-    
+
     Returns
     -------
     abnormal_date : str or None
@@ -79,50 +85,71 @@ def find_aug_anomaly(daily):
     abnormal_row : pd.Series or None
         异常日完整数据
     z_score : float
-        Z-Score 值
+        Z-Score 值（保留原签名兼容）
     """
-    print('\n=== 步骤1：定位8月异常日 ===', flush=True)
-    
-    # 筛选8月数据
+    print('\n=== 步骤1：基于 Prophet 残差定位异常日 ===', flush=True)
+
+    # 用 Prophet 无节假日模型拟合全年日消费额
+    df = daily[['日期', '总消费额']].copy()
+    df.columns = ['ds', 'y']
+    df = df.sort_values('ds').reset_index(drop=True)
+
+    m = Prophet(
+        yearly_seasonality=True,
+        weekly_seasonality=True,
+        daily_seasonality=False,
+        seasonality_mode='additive',
+        changepoint_prior_scale=0.05,
+        seasonality_prior_scale=10,
+        interval_width=0.95,
+    )
+    m.fit(df)
+
+    future = df[['ds']]
+    forecast = m.predict(future)
+
+    merged = df.merge(forecast[['ds', 'yhat']], on='ds')
+    merged['residual'] = merged['y'] - merged['yhat']
+
+    # 残差 Z-Score
+    mu_res = merged['residual'].mean()
+    sigma_res = merged['residual'].std()
+    merged['Z_Residual'] = (merged['residual'] - mu_res) / sigma_res
+
+    # 保存残差表
+    out_csv = os.path.join(TABLES_DIR, 'q1_prophet_residual.csv')
+    merged[['ds', 'y', 'yhat', 'residual', 'Z_Residual']].to_csv(out_csv, index=False, encoding='utf-8-sig')
+    print(f'  [保存] {out_csv}  ({len(merged)} 行)', flush=True)
+
+    # 找 |Z_Residual| 最大（最异常）的日期
+    idx_max_abs = merged['Z_Residual'].abs().idxmax()
+    abnormal_dt = merged.loc[idx_max_abs, 'ds']
+    z_abs = float(merged.loc[idx_max_abs, 'Z_Residual'])
+    abnormal_y = float(merged.loc[idx_max_abs, 'y'])
+    abnormal_yhat = float(merged.loc[idx_max_max := idx_max_abs, 'yhat'])
+
+    # 回填异常日完整行（从原 daily）
+    abnormal_match = daily[daily['日期'] == abnormal_dt]
+    if len(abnormal_match) == 0:
+        return None, None, z_abs
+    abnormal_row = abnormal_match.iloc[0]
+    abnormal_date = pd.Timestamp(abnormal_dt).strftime('%Y-%m-%d')
+
+    # 输出诊断信息
+    print(f'  基于 Prophet 残差定位异常日：{abnormal_date}', flush=True)
+    print(f'    残差 Z-Score：{z_abs:+.3f}', flush=True)
+    print(f'    当日实际消费：{abnormal_y:.2f} 元 = {abnormal_y/10000:.2f} 万元', flush=True)
+    print(f'    Prophet 预测：{abnormal_yhat:.2f} 元', flush=True)
+    print(f'    残差：{(abnormal_y - abnormal_yhat):+.2f} 元', flush=True)
+
+    # 8月数据展示（保留）
     aug = daily[daily['日期'].dt.month == 8].copy()
-    if len(aug) == 0:
-        print('[警告] 没有8月数据！', flush=True)
-        return None, None, None
-    
-    # 输出8月前5名高消费日
-    top5 = aug.nlargest(5, '总消费额')[['日期', '总消费额', '新注册数', '注册转化率', 'CPC']]
-    print('\n8月消费额 Top5：', flush=True)
-    print(top5.to_string(index=False), flush=True)
-    
-    # 计算8月消费额 Z-Score
-    aug_mean = aug['总消费额'].mean()
-    aug_std = aug['总消费额'].std()
-    print(f'\n8月消费额统计：均值={aug_mean:.2f}，标准差={aug_std:.2f}', flush=True)
-    
-    aug['Z_Score'] = (aug['总消费额'] - aug_mean) / aug_std
-    
-    # 找 Z-Score > 3 的异常日
-    anomalies = aug[aug['Z_Score'] > 3].copy()
-    
-    if len(anomalies) == 0:
-        print('[提示] 8月没有 Z-Score > 3 的异常日', flush=True)
-        # 取8月消费额最大的那天作为备选
-        max_row = aug.loc[aug['总消费额'].idxmax()]
-        abnormal_date = max_row['日期'].strftime('%Y-%m-%d')
-        abnormal_row = max_row
-        z_score = max_row['Z_Score']
-        print(f'退而选择8月最高消费日：{abnormal_date}，Z-Score={z_score:.2f}', flush=True)
-    else:
-        # 取消费额最大的异常日
-        abnormal_row = anomalies.loc[anomalies['总消费额'].idxmax()]
-        abnormal_date = abnormal_row['日期'].strftime('%Y-%m-%d')
-        z_score = abnormal_row['Z_Score']
-        print(f'\n定位异常日：{abnormal_date}', flush=True)
-        print(f'  消费额：{abnormal_row["总消费额"]:.2f} 元 = {abnormal_row["总消费额"]/10000:.2f} 万元', flush=True)
-        print(f'  Z-Score：{z_score:.2f}', flush=True)
-        print(f'  注册转化率：{abnormal_row["注册转化率"]:.4f}', flush=True)
-    
-    return abnormal_date, abnormal_row, z_score
+    if len(aug) > 0:
+        top5 = aug.nlargest(5, '总消费额')[['日期', '总消费额', '新注册数', '注册转化率', 'CPC']]
+        print('\n  8月消费额 Top5（参考）：', flush=True)
+        print(top5.to_string(index=False), flush=True)
+
+    return abnormal_date, abnormal_row, z_abs
 
 
 def build_clean_dataset(daily, abnormal_date):
@@ -271,84 +298,30 @@ def run_bootstrap_comparison(original_daily, clean_daily,
     """
     print('\n=== 步骤4：Bootstrap CI 宽度对比 ===', flush=True)
     
-    def _bootstrap_one(df, value_col, holiday_date_str, holiday_name, n_boot=200):
-        """单节日单数据集 Bootstrap（简化版 - 不用 Prophet）
-
-        节日效应 = 当天值 - 前后 7 天均值（剔除节日当天）
-        每次 bootstrap 重采样整年，对节日效应重新估计
-        """
-        np.random.seed(42)
-        d_holiday = pd.to_datetime(holiday_date_str)
-
-        prophet_df = df[['日期', value_col]].copy()
-        prophet_df = prophet_df.sort_values('日期').reset_index(drop=True)
-        n = len(prophet_df)
-
-        # 找节日当天的位置（按日期精确匹配）
-        d_str_only = pd.Timestamp(d_holiday).normalize()
-        matches = prophet_df[prophet_df['日期'].dt.normalize() == d_str_only].index
-        if len(matches) == 0:
-            return None
-        h_idx = int(matches[0])
-
-        diffs = []
-        for _ in range(n_boot):
-            # 重采样整年
-            idx_boot = np.random.choice(n, size=n, replace=True)
-            boot_y = prophet_df.loc[idx_boot, value_col].values
-            boot_dates = prophet_df.loc[idx_boot, '日期'].values
-
-            # 找 boot 数据中节日当天（首次出现）
-            boot_h_arr = np.where(pd.Series(boot_dates).dt.normalize().values == d_str_only)[0]
-            if len(boot_h_arr) == 0:
-                continue
-            boot_h_idx = int(boot_h_arr[0])
-
-            # 前后 7 天内的非节日数据
-            other_idx = [i for i in range(len(boot_y))
-                         if i != boot_h_idx and abs(i - boot_h_idx) <= 7]
-            if len(other_idx) < 4:
-                continue
-
-            effect = boot_y[boot_h_idx] - boot_y[other_idx].mean()
-            diffs.append(effect)
-
-        diffs = np.array(diffs)
-        if len(diffs) == 0:
-            return None
-
-        ci_low = np.percentile(diffs, 2.5)
-        ci_high = np.percentile(diffs, 97.5)
-        mean_diff = diffs.mean()
-        p_val = 2 * min((diffs <= 0).mean(), (diffs >= 0).mean())
-        ci_width = ci_high - ci_low
-
-        return {
-            '均值差': mean_diff,
-            'CI下限': ci_low,
-            'CI上限': ci_high,
-            'CI宽度': ci_width,
-            'p值': p_val,
-            'n_eff': len(diffs),
-        }
+    # 不再用 LEGAL_HOLIDAYS 简化版——统一调用 Prophet-based bootstrap_one_holiday
+    from src.q1_bootstrap import bootstrap_one_holiday
 
     rows = []
     for d_str, name in holidays_to_test:
         print(f'  Bootstrap: {name} {d_str}', flush=True)
-        
+
         for label, df in [('含异常日', original_daily), ('剔除异常日', clean_daily)]:
-            r = _bootstrap_one(df, '总消费额', d_str, name, n_boot=n_boot)
+            try:
+                r = bootstrap_one_holiday(df, '总消费额', d_str, name, n_boot=n_boot, seed=42)
+            except Exception as e:
+                print(f'    [warn] bootstrap_one_holiday 失败 ({label}): {e}', flush=True)
+                r = None
             if r:
                 rows.append({
                     '节日': name,
                     '日期': d_str,
                     '数据集': label,
                     '均值差': round(r['均值差'], 2),
-                    'CI下限': round(r['CI下限'], 2),
-                    'CI上限': round(r['CI上限'], 2),
-                    'CI宽度': round(r['CI宽度'], 2),
-                    'p值': round(r['p值'], 4),
-                    '有效样本': r['n_eff'],
+                    'CI下限': round(r['CI下限(2.5%)'], 2),
+                    'CI上限': round(r['CI上限(97.5%)'], 2),
+                    'CI宽度': round(r['CI上限(97.5%)'] - r['CI下限(2.5%)'], 2),
+                    'p值': round(r['p值(双侧)'], 4),
+                    '有效样本': r['n_boot_valid'],
                 })
     
     result_df = pd.DataFrame(rows)

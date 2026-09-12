@@ -457,6 +457,15 @@ def _score_per_plan(data) -> pd.DataFrame:
     pd.DataFrame: shape (n_plans, 4)
         index=方案ID, columns=[设计, 关键词, 出价, 时间]
         每个单元格是 0-100 的综合得分
+
+    ----- 与 score_design_quality / score_keyword_management / etc. 的关系（P1-1 口径说明）-----
+    本函数用简化公式为"每个方案"算分（CRITIC 赋权只需要相对顺序，不必绝对阈值精确）。
+    score_design_quality() 等 4 个聚合函数则用 industry_score（行业阈值）+ 双轨评分，
+    计算"全公司"维度的绝对得分。两套并存：
+      - score_* → 全公司维度得分 → overall_score
+      - _score_per_plan → 5×4 矩阵 → CRITIC 权重
+    最终输出 dimensions[*].details 用 score_*（带所有明细指标），
+    plan_scores 用 _score_per_plan（只存 4 维聚合）。
     """
     plan_total = data['plan_total']
     dfk = data['keyword_total']
