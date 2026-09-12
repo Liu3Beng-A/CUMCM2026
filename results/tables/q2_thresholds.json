@@ -1,0 +1,56 @@
+{
+  "T_cost": 8.06,
+  "T_benefit": 0.903954802259887,
+  "n_valid": 1337,
+  "axis_cost": "消费额（元）",
+  "axis_benefit": "CPC 倒数 = 点击量/消费额（点击/元）",
+  "method": "中位数（中位数分桶，对 heavy-tail 较稳定）",
+  "counts": {
+    "黄金词": 431,
+    "重点词": 238,
+    "潜力词": 240,
+    "问题词": 428,
+    "无效词": 890
+  },
+  "policies": {
+    "D-Q2-001": "2227 明细 one-hot + 12 推广单元聚合双输出",
+    "D-Q2-002": "成本=消费额 / 效益=CPC 倒数",
+    "D-Q2-003": "消费=0 即无效词",
+    "D-Q2-004": "双输出（2227 明细 → result2.xlsx；12 聚合 → unit_summary.csv）",
+    "D-Q2-005": "极值审计（消费 > q95 或 高CPC高消费，~112 词）"
+  },
+  "robustness_20260912": {
+    "methodology": "主分类器口径保持 D-Q2-002 不变；6 项补充分析作为方法稳健性证据",
+    "threshold_compare": {
+      "A_uniform_median_main": "T_cost=8.06 / T_benefit=0.9040（黄金 431 / 重点 238 / 潜力 240 / 问题 428）",
+      "B_weighted_median": "T_cost=69706.90 / T_benefit=0.4556（几乎所有词变低成本，分类失效）",
+      "C_industry_benchmark": "T_cost=8.06 / T_benefit=0.6667（CPC=1.5元基准，黄金 577 / 重点 418 / 潜力 94 / 问题 248，更严苛）",
+      "conclusion": "A 分布平衡（4 类各 25%），贴近题面'黄金/重点/潜力/问题'均衡语义；选 A"
+    },
+    "field_robustness_4combos": {
+      "1_main_(消费额,CPC倒数)": "Cohen κ = 1.000（自身基准）",
+      "2_(消费额,点击量)": "Cohen κ = 0.294，与主选择一致性 42.7%",
+      "3_(CPC,留存率)": "Cohen κ = 0.003（接近随机），与主选择一致性 24.2%",
+      "4_(CPC倒数,点击量)": "Cohen κ = 0.130，与主选择一致性 35.7%",
+      "conclusion": "字段选择会大幅影响分类（Cohen κ 0.003~1.000），锁定 D-Q2-002 (消费额 × CPC倒数) 是 SEM 业务最经典的'成本/效益'度量"
+    },
+    "audit_v2": {
+      "preserve_count": 14, "cut_count": 91, "observe_count": 0,
+      "preserve_type": "重点词 → 保留型极值（高消费高效益，建议加码）",
+      "cut_type": "问题词 → 削减型极值（高消费低效益，建议削减）",
+      "risk_business_threshold": "消费>10000=高 / 5000-10000=中 / <5000=低；分布 高69/中27/低9"
+    },
+    "ghost_browsing_count": 2,
+    "ghost_browsing_detail": "消费=0 但浏览=1 的 2 词（序号 3481 / 5844），疑似爬虫/恶意访问；保留但加 异常标记 列",
+    "potential_revival_count": 0,
+    "potential_revival_explanation": "888 三零词的跳出率全为默认填充值 0.5 + 平均访问时长=0 → 系统确实没有为这些词分配曝光，全部为 truly_dead，无潜在激活清单",
+    "files": [
+      "results/tables/q2_thresholds_compare.json",
+      "results/tables/q2_field_robustness.csv",
+      "results/tables/q2_extreme_audit_v2.csv",
+      "results/tables/q2_zero_keyword_breakdown.csv（潜在激活清单：0 词）",
+      "results/tables/q2_robustness_report.json",
+      "data/processed/q2/keyword_classified.pkl（新增 异常标记 列）"
+    ]
+  }
+}

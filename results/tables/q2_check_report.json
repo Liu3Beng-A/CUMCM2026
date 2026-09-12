@@ -1,0 +1,104 @@
+{
+  "n_pass": 10,
+  "n_fail": 0,
+  "total": 10,
+  "results": [
+    {
+      "check": "result2 行数",
+      "status": "PASS",
+      "expected": 2227,
+      "actual": 2227
+    },
+    {
+      "check": "result2 列名对齐",
+      "status": "PASS",
+      "expected": [
+        "方案ID",
+        "推广单元",
+        "序号",
+        "黄金词",
+        "重点词",
+        "潜力词",
+        "问题词",
+        "无效词"
+      ],
+      "actual": [
+        "方案ID",
+        "推广单元",
+        "序号",
+        "黄金词",
+        "重点词",
+        "潜力词",
+        "问题词",
+        "无效词"
+      ]
+    },
+    {
+      "check": "one-hot 自洽",
+      "status": "PASS",
+      "expected": "[1]",
+      "actual": [
+        1
+      ]
+    },
+    {
+      "check": "5 类总数 = 2227",
+      "status": "PASS",
+      "expected": 2227,
+      "actual": 2227
+    },
+    {
+      "check": "无效词 ≥ 890",
+      "status": "PASS",
+      "expected": "≥ 890",
+      "actual": 890
+    },
+    {
+      "check": "推广单元聚合表行数 ∈ [10, 15]",
+      "status": "PASS",
+      "expected": "[10, 15]",
+      "actual": 12
+    },
+    {
+      "check": "双表 5 类一致性",
+      "status": "PASS",
+      "expected": {
+        "黄金词": 431,
+        "重点词": 238,
+        "潜力词": 240,
+        "问题词": 428,
+        "无效词": 890
+      },
+      "actual": {
+        "黄金词": 431,
+        "重点词": 238,
+        "潜力词": 240,
+        "问题词": 428,
+        "无效词": 890
+      }
+    },
+    {
+      "check": "极值审计词数 ∈ [90, 120]",
+      "status": "PASS",
+      "expected": "[90, 120]",
+      "actual": 105
+    },
+    {
+      "check": "4 张图齐全",
+      "status": "PASS",
+      "expected": [
+        "q2_class_distribution.png",
+        "q2_threshold_sensitivity.png",
+        "q2_extreme_audit.png",
+        "q2_unit_class_stacked.png"
+      ],
+      "actual": []
+    },
+    {
+      "check": "Q1 综合分保持 50.7",
+      "status": "PASS",
+      "expected": 50.7,
+      "actual": 50.7
+    }
+  ]
+}

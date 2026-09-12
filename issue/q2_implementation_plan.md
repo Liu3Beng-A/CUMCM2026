@@ -48,7 +48,7 @@
 
 | 项 | 路径 | 用途 | 行数 |
 |---|---|---|---|
-| Q2 主交付物 | `data/raw/attachments/result2.xlsx` | 题面要求 | **2227 行**（= 2227 关键词 one-hot） |
+| Q2 主交付物 | `results/excel/result2.xlsx` | 题面要求 + 统一汇总目录 | **2227 行**（= 2227 关键词 one-hot） |
 | Q2 推广单元聚合 | `results/tables/q2_unit_cluster_summary.csv` | 论文图表 + 跨方案对比 | **60 行**（= 12 推广单元，5 方案共享推广单元 ID；实际行数待确认） |
 | Q2 极值审计 | `results/tables/q2_extreme_audit.csv` | 112 极值词 + 审计标签 | **~112 行** |
 | Q2 5 类分布图 | `results/figures/q2_class_distribution.png` | 5 类计数柱状图 | 1 张 |
@@ -75,7 +75,7 @@
 **目的**：防止再次 hallucination + 给后续阶段清晰的进度锚点。
 
 **动作清单**：
-1. `tools/backup_pre_q2impl_20260912.py`：将当前 `src/q2_classify.py`（若存在）/ `data/raw/attachments/result2.xlsx` / `results/tables/q2_*.csv` / `results/figures/q2_*.png` / `issue/q2_method.md` / `paper/paper.md` §5.2 全部备份到 `results/snapshots/pre_q2impl_20260912/`
+1. `tools/backup_pre_q2impl_20260912.py`：将当前 `src/q2_classify.py`（若存在）/ `results/excel/result2.xlsx` / `results/tables/q2_*.csv` / `results/figures/q2_*.png` / `issue/q2_method.md` / `paper/paper.md` §5.2 全部备份到 `results/snapshots/pre_q2impl_20260912/`
 2. 新建 `issue/q2_implementation_plan.md`（本文档）作为 WIP 锚点
 3. 在 `WORK_STATE.md` 第 3 节路线图追加 Q2 修复进度表（S1~S9）
 4. TodoWrite 建 9 阶段表（S1~S9）
@@ -125,7 +125,7 @@ Step 2：有效词二维硬阈值分 4 类
 - `compute_thresholds(df_valid) → dict`：Step 2 计算双阈值
 - `classify_two_d(df_valid, thresholds) → DataFrame`：4 象限标注
 - `build_one_hot(df_classified) → DataFrame`：生成 result2 模板格式
-- `export_result2(df_one_hot) → path`：写 `data/raw/attachments/result2.xlsx`
+- `export_result2(df_one_hot) → path`：写 `results/excel/result2.xlsx`
 - `export_unit_summary(df_classified) → path`：写 60 行推广单元聚合
 - `mark_extreme(df_classified) → DataFrame`：q95 极值标注
 - `assert_invariants(df) → None`：5 类完整性 + one-hot 校验

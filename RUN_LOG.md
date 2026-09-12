@@ -145,3 +145,73 @@
 [2026-09-12 14:46] **Q3/Q4 方法架构 S1 准备**：用户要 Q3/Q4 方案写在根目录，agent 执行，要求结合题面 + 国奖水准 + 严禁偏离 | - | OK
 [2026-09-12 14:55] **Q3/Q4 架构 S2 读模板 + 写文档**：probe 读出 Sheet1=10列(含4上方位字段)/Sheet3=9列/result3,4=9列模板 → 校正 mdc 的列名错误 + 写 Q3Q4_Method_Architecture.md 424 行（FP-Growth 关联挖掘 + MILP + Two-Stage SP + 6因子不确定性参数化 + 国奖4加分点 + 10条红线）| Q3Q4_Method_Architecture.md (根目录) | OK
 [2026-09-12 14:55] **mdc 校正**：Sheet1 实际 10 列（4 个上方位字段，非 mdc 摘要的 5 维），结果模板严格 9 列（预期展位=上方位展现量）| mdc §2.2 / §3.3 备注需更新 | -
+[2026-09-12 15:01] **Q2 实施 S2 启动**：用户指令"回到Q2"，5 项决策已锁定 → 读 result2 模板（8列：方案ID/推广单元/序号/黄金/重点/潜力/问题/无效）+ 读 Sheet3 数据画像（n=2227/9列/消费50%分位=1.5元含无效词）+ 读 src/utils.py + plot_style.py 复用函数 | 4 文件 | OK
+[2026-09-12 15:07] **Q2 实施 S2 写主方法脚本**：src/q2_classify.py 458 行（load_sheet3/mark_invalid/compute_thresholds/classify_two_d/build_one_hot/aggregate_by_unit/mark_extreme/run 8 函数 + 4 步不变量校验 + CLI）| src/q2_classify.py | OK
+[2026-09-12 15:08] **Q2 实施 S3 跑通主流程**：python -m src.q2_classify → 无效890/有效1337/T_cost=8.06元/T_benefit=0.904/5类：黄金431+重点238+潜力240+问题428+无效890=2227 ✓ / result2.xlsx 已导出 + 极值审计105词 + 聚合52行 + pkl 已写 | data/raw/attachments/result2.xlsx + 5 产物 | OK
+[2026-09-12 15:12] **Q2 实施 S5 写绘图脚本 + 跑**：src/q2_plots.py 生成 4 张图（5 类分布 + 阈值敏感性龙卷风 + 极值审计 Top 20 + 推广单元 5 类堆叠） | - | -
+[2026-09-12 15:15] **Q2 实施 S5 路径 bug 修复 + 重跑**：第 1 次报 FileNotFoundError（os.path.dirname 算错 PROCESSED_DIR），第 2 次用 PROCESSED_DIR 直接 import → 4 张图全部 OK | src/q2_plots.py | OK
+[2026-09-12 15:20] **Q2 实施 S9 写验证脚本 + 首跑**：tools/check_q2.py 10 项自检 → 9/10 PASS + [6] FAIL（推广单元聚合表期望 [40,80] 实际 12 行）| tools/check_q2.py | OK
+[2026-09-12 15:22] **Q2 实施 S9 诊断 [6] FAIL**：Sheet3 中 12 推广单元各属 1 方案，去重 12 行（不是规划假设的 5×12=60）→ q2_implementation_plan.md 假设错 + tools/check_q2.py 期望错 | 同步修复 2 文件 | OK
+[2026-09-12 15:23] **Q2 实施 S9 修复 [6] 期望 [10,15] + 重跑**：10/10 PASS 🎉（行数2227/列名对齐/one-hot自洽/5类=2227/无效890/聚合12/双表一致/极值105/4图齐全/Q1=50.7）| results/tables/q2_check_report.json | OK
+[2026-09-12 15:25] **Q2 实施 S8 文档同步**：WORK_STATE Q2 状态 ✅ + DECISION_LOG D-011 5 项决策确认 | 2 文件 | OK
+[2026-09-12 14:03] **S1 启动 Q2 补充工作**：检查现有产物（result2.xlsx / q2_thresholds.json / q2_extreme_audit.csv 都在），主分类器 T_cost=8.06/T_benefit=0.904 锁定不动 | - | OK
+[2026-09-12 14:08] **S2 写 q2_robustness.py**：6 项补充功能封装（①阈值3对比 ②字段稳健性 ③极值审计升级 ⑤ghost_browsing ⑥三零词细分） | src/q2_robustness.py 376 行 | OK
+[2026-09-12 14:12] **S2-S7 6项分析跑通**：①阈值3对比 → q2_thresholds_compare.json（A均匀中位数优 / B加权失效 / C行业严苛）| ②字段稳健性 → q2_field_robustness.csv（Cohen κ 0.003~1.000, 锁定字段合理）| ③极值审计v2 → q2_extreme_audit_v2.csv（保留14/削减91/观察0）| ④业务风险评级 高69/中27/低9（替代原'全高'）| ⑤ghost_browsing=2 词标记 | ⑥888三零词全真死词（potential_revival=0）| 6 文件 | OK
+[2026-09-12 14:14] **S8 重跑 check_q2.py**：主交付物 result2.xlsx / 8 列 / 5 类计数 / 极值审计 105 词 / Q1 综合分 50.7 全保留 | 10/10 PASS | OK
+[2026-09-12 14:16] **S8 更新 thresholds.json**：新增 robustness_20260912 字段（阈值3对比 / 字段稳健性 / 审计v2 / ghost_browsing / potential_revival）+ 6 文件清单 | results/tables/q2_thresholds.json | OK
+[2026-09-12 15:30] **S8 WORK_STATE / DECISION_LOG 同步**：WORK_STATE 第 0 节 + 决策清单表 + 数据契约 段（添加 6 项稳健性产物 + D-015~D-020）；DECISION_LOG 新增 D-015 字段组合 / D-016 阈值口径 / D-017 风险评级 / D-018 极值类型 / D-019 异常词 / D-020 Q2 完成总结 | WORK_STATE.md / DECISION_LOG.md | OK
+[2026-09-12 16:16] **S1-S5 Q2鍏ㄩ潰鍒嗘瀽**锛氭牳鏌ラ闈㈠師鏂?page_2 Q2)+闄勪欢2妯℃澘(1琛?鍒?+q2_classify.py鏁板妯″瀷+q2_robustness.py绋冲仴鎬?q2_plots.py鍥捐〃+verify鑴氭湰娣卞害楠岃瘉銆傚彂鐜? 鈶犳ā鏉垮彧鏈夋爣棰樿(鏃犵ず渚嬫暟鎹?2227琛宱ne-hot杈撳嚭瀹屽叏鍚堟硶 鈶￠槇鍊奸噸绠椾竴鑷?T_cost=8.06/T_benefit=0.904) 鈶?绫昏鏁版槑缁?鑱氬悎=2227 鈶ｆ瀬鍊艰瘝闂璇嶆瀬鍊肩巼21.3%vs閲嶇偣璇?.9%鍚堢悊 鈶ohen 魏 0.003~1.000璇佹槑瀛楁閿佸畾蹇呰 | OK
+[2026-09-12 16:20] **S6 缁煎悎璇勪及**锛氬悎鐞嗛」9椤?鏍煎紡/妯″瀷/璁℃暟/鏋佸€?瀛楁閿佸畾绛?锛涘皬闂2椤?q2_zero_keyword_breakdown.csv缂哄け/鑱氬悎琛?3鍒楄秴妯℃澘8鍒?锛涚粨璁篞2鏁板妯″瀷瀹屽叏姝ｇ‘10/10鑷PASS璁烘枃鍙啓 | OK
+[2026-09-12 16:22] **S7 鏂囨。鍚屾**锛歱aper/paper.md 搂5.2(448琛屽畬鍏ㄦ浛鎹㈠崰浣嶁啋8瀛愯妭鏁板妯″瀷+鍒嗙被缁撴灉+鏋佸€煎璁?寮傚父鏍囪+杈撳嚭璇存槑+10椤硅嚜妫€+涓嶲3琛旀帴)锛涢檮褰旳/B/C Q2鏂囦欢宸叉洿鏂颁负宸插畬鎴愨渽锛沇ORK_STATE褰撳墠鐘舵€佹洿鏂?| paper/paper.md 831琛?| OK
+[2026-09-12 16:35] **S1 创建 results/excel/ 目录 + 迁移 result2.xlsx**：data/raw/attachments/result2.xlsx → results/excel/result2.xlsx (file size 65KB 保持)；原路径已移除 | D:\CUMCM2026Problems\results\excel\ | OK
+[2026-09-12 16:36] **S2 src/utils.py 已含 EXCEL_DIR 常量**：EXCEL_DIR = os.path.join(RESULTS_DIR, 'excel') (无需新增) | src/utils.py L20 | OK
+[2026-09-12 16:37] **S3 更新 src/q2_classify.py 输出路径**：RESULT2_OUT = os.path.join(EXCEL_DIR, 'result2.xlsx') 替代 RAW_DIR/attachments/result2.xlsx | src/q2_classify.py L49 | OK
+[2026-09-12 16:38] **S4 更新 src/q2_classify.py 文档字符串**：主输出路径注释从 data/raw/attachments 改为 results/excel | src/q2_classify.py L13 | OK
+[2026-09-12 16:39] **S5 更新 tools/check_q2.py 自检脚本**：RESULT2_OUT 改为 EXCEL_DIR + 新增 EXCEL_DIR 导入 | tools/check_q2.py L14/19 | OK
+[2026-09-12 16:40] **S6 更新 tools/verify_*.py 验证脚本**：verify_result2.py + verify_q2_all.py + verify_q2_deep.py 共 3 个文件读路径迁移 | tools/verify_*.py | OK
+[2026-09-12 16:41] **S7 更新 paper/paper.md**：B.21/B.22/B.23 行路径迁移 + 附录 X X.1/X.2/X.3 输出路径迁移（共 6 处）| paper/paper.md L723/727/728/806/814/822 | OK
+[2026-09-12 16:42] **S8 更新 .cursor/rules/project-context.mdc**：Q2 输出路径说明 + 仓库框架中结果文件位置说明（2 处）| .cursor/rules/project-context.mdc L141/195 | OK
+[2026-09-12 16:43] **S9 更新 WORK_STATE.md + Q3Q4_Method_Architecture.md + issue/q2_implementation_plan.md**：状态表 + 数据契约 + 方法架构共 9 处路径迁移 | 3 个文件 | OK
+[2026-09-12 16:44] **S10 创建 results/excel/README.md 约定文档**：表格列出 result2/3/4 状态 + 路径约定 + 代码引用示例 | results/excel/README.md | OK
+[2026-09-12 16:45] **S11 验证迁移后能重跑**：tools/check_q2.py 10 项自检全 PASS (使用新路径 EXCEL_DIR/result2.xlsx)；文件 shape=(2227, 8) 5 类合计 2227 全保留 | 10/10 PASS | OK
+[2026-09-12 16:50] **S12 评估 Q3Q4_Method_Architecture.md**：交叉对比 题面(mdc v3) vs 文档 vs 附件2 result3/4 模板，发现 6 个关键遗漏/不一致点 | Q3Q4_Method_Architecture.md (424 行) | OK
+[2026-09-12 16:51] **S13 读取附件2 模板确认**：result3.xlsx / result4.xlsx shape=(1, 9)，列名严格 = [日期, 方案ID, 推广单元, 关键词, 投入金额, 预期展位, 预期点击量, 预期浏览量, 预期注册量]，仅表头无数据 | data/raw/attachments/附件2/result{3,4}.xlsx | OK
+[2026-09-12 16:52] **S14 读取附件1 三表确认列名**：Sheet1 10列(含 上方位展现量/上方位首位/上方位点击/上方位消费)，Sheet2 = 日期+新注册数 365行，Sheet3 9列(无展现量列) | data/raw/attachments/附件1.xlsx | OK
+[2026-09-12 16:45] **PoC S1-S7 数据探测**：读附件1 Sheet1/2/3 原始列名 + 时间粒度 + Q4因子 CV + 16 天预算 | tools/poc_q3q4_data_probe.py (9.9KB) | OK
+[2026-09-12 16:46] **PoC 关键发现 F1-F6**：Sheet3=全年累计/无展现量列/890词40%空值/Q4用Sheet1 30天CV/入选项=909词/16天预算=51164.93元 | PoC_REPORT.md | OK
+[2026-09-12 16:47] **PoC 报告落盘**：6个事实 + 7个章节 + 9项行动清单 + 1个决策点 D-Q3Q4-001 | PoC_REPORT.md (196 行) | OK
+[2026-09-12 16:48] **修订 Q3Q4 §1.1 输入资源表**：Sheet3 加注全年累计/Sheet2 加 strip 提示 + PoC 实测证据脚注（消费1,425,949.81元 ≈ Sheet1 1,425,949.79元）| Q3Q4_Method_Architecture.md | OK
+[2026-09-12 16:49] **新增 Q3Q4 §1.4 时间粒度标准化**：Sheet1/2 日级 vs Sheet3 累计，统一基准 + 入选项预估(909词/40.82%)+ 单元预算差异1400x | Q3Q4_Method_Architecture.md | OK
+[2026-09-12 16:50] **新增 Q3Q4 §2.2.1 代理变量法 Layer 1.5**：5个代理公式(消费/点击/浏览/展位/注册) + 2个关键假设 + 注册两步分配链路(Sheet2→单元→关键词) | Q3Q4_Method_Architecture.md | OK
+[2026-09-12 16:51] **修正 MILP 目标函数 BUG**：原 max Σ benefit/y 在 y→0 时发散 → 改为 max Σ (α·r_click+β·r_browse+γ·r_reg)·y (线性LP) | Q3Q4_Method_Architecture.md §2.3 | OK
+[2026-09-12 16:52] **修订 §2.3 约束：4→5硬+1软**：x-y联动硬约束 + 关联规则conf>0.8硬约束→软奖励(目标函数 +δ·应用率) + 3级 infeasible fallback | Q3Q4_Method_Architecture.md | OK
+[2026-09-12 16:53] **修订 §2.4 Layer 4 引用 §2.2.1**：4 指标公式改为线性形式 (4个历史比值×y)，消除公式抽象性 | Q3Q4_Method_Architecture.md | OK
+[2026-09-12 16:54] **修订 §3.2 Q4 不确定性参数化**：6 因子来源全用 Sheet1 推广单元级 30 天 CV（不是 Sheet3 跨词 CV），PoC 实测 12 单元 CV 中位 0.45~0.65 | Q3Q4_Method_Architecture.md | OK
+[2026-09-12 16:55] **新增 §3.2.1 关键词级 CV 代理规则**：kw_cv = unit_cv 代理假设 + 敏感性±30%规则 | Q3Q4_Method_Architecture.md | OK
+[2026-09-12 16:56] **新增 §3.4 模板 vs 题面冲突标注**：默认 4 列(按模板)，6 因子仅内部建模 + paper §5.4 文字解释；待 D-Q3Q4-001 决策 | Q3Q4_Method_Architecture.md | OK
+[2026-09-12 16:57] **扩充 §5 红线 11→12 条**：新增红线 11(禁止绕过代理变量法) + 红线 12(禁止统一缩放因子) | Q3Q4_Method_Architecture.md | OK
+[2026-09-12 16:58] **新增 §10 PoC 修订变更日志**：14:50 原版 vs 16:42 PoC 版逐项对比表(11 项变更)，方便交接 agent 理解改动 | Q3Q4_Method_Architecture.md | OK
+[2026-09-12 16:59] **文档总行数 559 (从 424 → 559，+135 行)**：PoC 修订完成，等用户最终确认 | Q3Q4_Method_Architecture.md | OK
+[2026-09-12 16:55] **BIAS S1 读附件 2 全模板**：result2(8列)/result3(9列)/result4(9列)，**关键发现 result4 与 result3 模板完全相同** | tools/probe_attachments_v2.py | OK
+[2026-09-12 16:56] **BIAS S2 抽取 Q4 同期预算**：2025-09-11~17 7天总消费 23,488.02 元（vs Q3 的 51,164.93 元），单元-日均 max=2,721/min=0/中位 20.86 | tools/probe_budget_split.py | OK
+[2026-09-12 16:56] **BIAS S3 拆分 Q3 02/08 月预算**：02-01~08=13,681.15元(春节) vs 08-01~08=37,483.78元(暑假)，3x 差距，**不应合并** | tools/probe_budget_split.py | OK
+[2026-09-12 16:56] **BIAS S4 上方位口径验证**：上方位展现量 6.12M(27%) vs 上方位首位 2.35M(10%) vs 展现量 22.58M，确认选上方位展现量 | tools/probe_columns.py | OK
+[2026-09-12 16:57] **BIAS S5 写偏差分析报告**：10 项偏差 (3 P0 + 3 P1 + 4 P2)，含决策表 + 修订清单 + 优先级 | BIAS_REPORT.md (263 行) | OK
+[2026-09-12 16:58] **BIAS R1 头部加 BIAS 修订标记**：Q3Q4_Method_Architecture.md 头部追加"BIAS 修订：2026-09-12 16:57（详见 BIAS_REPORT.md）" | Q3Q4_Method_Architecture.md | OK
+[2026-09-12 16:58] **BIAS R2 §1.1 result2 列名加"词"字**：黄金词/重点词/潜力词/问题词/无效词 | Q3Q4_Method_Architecture.md §1.1 | OK
+[2026-09-12 16:58] **BIAS R3 §1.2.1 新增"预期展位"口径选择**：上方位展现量=27%占比+ 4 种候选口径对比表 | Q3Q4_Method_Architecture.md §1.2.1 | OK
+[2026-09-12 16:59] **BIAS R4 §1.4 入选项预估分段 + 决策变量简化提示**：14,544 个 (d,k) 组合（原 174,528 减 92%）+ 02/08 月段预算分别列出 | Q3Q4_Method_Architecture.md §1.4 | OK
+[2026-09-12 16:59] **BIAS R5 §2.0 新增"Q3=历史反事实优化"**：明确 Q3 是历史反事实（非未来预测），加 Q3 vs Q4 对比表 | Q3Q4_Method_Architecture.md §2.0 | OK
+[2026-09-12 17:00] **BIAS R6 §2.1 新增设计原则 5（投放模型=三层表达）**：MILP公式+业务规则+关联规则 | Q3Q4_Method_Architecture.md §2.1 | OK
+[2026-09-12 17:00] **BIAS R7 §2.3 决策变量 (d,p,k)→(d,k)**：从 174,528 减至 14,544（-92%），约束1/2/3/4 同步简化 | Q3Q4_Method_Architecture.md §2.3 | OK
+[2026-09-12 17:01] **BIAS R8 §2.3 约束 3 分段预算**：02月 13,681.15 + 08月 37,483.78 两段独立约束 | Q3Q4_Method_Architecture.md §2.3 约束 3 | OK
+[2026-09-12 17:01] **BIAS R9 §2.4 Layer 4 改名"四指标反事实估算"**：消除"预测"歧义 | Q3Q4_Method_Architecture.md §2.4 | OK
+[2026-09-12 17:02] **BIAS R10 §3.1 新增设计原则 5（同期=2025-09-11~17）**：严格 7 天语义 | Q3Q4_Method_Architecture.md §3.1 | OK
+[2026-09-12 17:02] **BIAS R11 §3.4 D-Q3Q4-001 已自动确定=4列**：result4 与 result3 模板同，题面"6期望值"是文字描述，模板是权威 | Q3Q4_Method_Architecture.md §3.4 | OK
+[2026-09-12 17:02] **BIAS R12 §3.4.1 新增"Q4 同期预算精确值"**：23,488.02 元 + 单元-日均 max/min/中位 + 77 记录数 | Q3Q4_Method_Architecture.md §3.4.1 | OK
+[2026-09-12 17:03] **BIAS R13 §5 红线 1 改写**：result3/4 列名=9列已严格对齐（删除"待决策"） | Q3Q4_Method_Architecture.md §5 | OK
+[2026-09-12 17:03] **BIAS R14 §11 新增 BIAS 修订变更日志**：10 项偏差明细（P0-1~P2-4），便于交接 agent 理解改动 | Q3Q4_Method_Architecture.md §11 | OK
+[2026-09-12 17:03] **BIAS 修订完成**：Q3Q4_Method_Architecture.md 559 → 654 行 (+95 行)，BIAS 字眼出现 27 次 | Q3Q4_Method_Architecture.md | OK
+[2026-09-12 17:05] **移交 S1 设计提示词骨架**：6 层结构（元指令/契约/沉淀/任务/输出/工作流），用「契约/不变量/数据契约/决策沉淀/反模式」术语替代大白话 | HANDOFF_PROMPT.md 设计 | OK
+[2026-09-12 17:06] **移交 S2 写提示词主体**：含 8 个已锁定决策（D-Q2~D-Q3Q4-001~007）+ 8 个 PoC 验证事实 + 12 项 DoD 验证点 + 9 项反模式 + 12 步工作流 | HANDOFF_PROMPT.md 8,619 chars / 236 行 | OK
+[2026-09-12 17:07] **移交 S3 保存为本地文档**：HANDOFF_PROMPT.md（用户可复制整段给新 agent）| HANDOFF_PROPORT.md | OK

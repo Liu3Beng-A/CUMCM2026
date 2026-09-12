@@ -138,7 +138,7 @@ alwaysApply: true
 - **方法**：二维硬阈值分类（成本 × 效益），分界点建议取中位数
   - 成本 = 消费额（或 CPC）
   - 效益 = 点击量（或 CPC 倒数）
-- **输出**：`data/raw/attachments/result2.xlsx`，列严格对齐附件 2 result2 模板
+- **输出**：`results/excel/result2.xlsx`（统一汇总目录），列严格对齐附件 2 result2 模板
 
 ### 3.2 Q3：每日投放策略（2025-02-01~08 + 2025-08-01~08 共 16 天）
 
@@ -192,9 +192,7 @@ CUMCM2026Problems/
 │   │   │   ├── result2.xlsx         Q2 输出模板
 │   │   │   ├── result3.xlsx         Q3 输出模板
 │   │   │   └── result4.xlsx         Q4 输出模板
-│   │   ├── result2.xlsx              Q2 输出（**待重做**）
-│   │   ├── result3.xlsx              Q3 输出（**待重做**）
-│   │   └── result4.xlsx              Q4 输出（**待重做**）
+│   │   └──                          Q2/Q3/Q4 实际输出迁移至 results/excel/（2026-09-12 16:30 约定）
 │   └── processed/q1/                Q1 聚合 pkl
 ├── src/
 │   ├── q1_main.py                   Q1 入口
