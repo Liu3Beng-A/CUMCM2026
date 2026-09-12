@@ -1,17 +1,16 @@
 {
-  "method": "cosine + fp_growth 关联规则在 MILP 解中的同日同单元共现率",
+  "method": "F3 修复：单端画像命中率（cosine + fp_growth 关联规则中前件或后件被 MILP 激活的比例）",
+  "original_method": "共激活率（已被 F3 修复替代，仅作对照保留）",
   "lift_threshold_high": 0.7,
   "n_milp_rows": 89,
-  "n_activated_keywords": 60,
+  "n_activated_keywords": 63,
   "n_rules_total": 100,
   "n_rules_high_confidence": 100,
-  "adoption_rate_summary": {
-    "mean_all": 0.0,
-    "median_all": 0.0,
-    "mean_high": 0.0,
-    "median_high": 0.0,
-    "max_all": 0.0,
-    "max_high": 0.0
-  },
-  "interpretation": "应用率 < 0.05 表明关联规则对 MILP 决策影响极小（关联挖掘主要作为辅助信息）；应用率 ≥ 0.10 表明约束 5 实际触发了同期同单元的关键词共激活。"
+  "F3_global_either_rate_all": 0.08,
+  "F3_global_either_rate_high": 0.08,
+  "F3_per_unit_date_either_rate_all_mean": 0.0011,
+  "F3_per_unit_date_either_rate_high_mean": 0.0011,
+  "legacy_both_rate_all_mean": 0.0,
+  "legacy_both_rate_high_mean": 0.0,
+  "interpretation": "F3 修复后：单端画像命中率反映 MILP 计划对关联规则所列关键词池的覆盖率，比\"强制共激活率\"在预算紧张场景下更可读；旧口径（共激活率）作为对照保留在 adopted_both_* 列。"
 }

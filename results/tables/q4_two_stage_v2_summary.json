@@ -13,30 +13,30 @@
   "lambda_results": [
     {
       "lambda": 0.0,
-      "objective": 33803.07899701081,
-      "total_cost": 23488.019940000006,
-      "n_active": 39,
-      "solve_time_s": 47.1
-    },
-    {
-      "lambda": 0.5,
-      "objective": 33803.07899701081,
-      "total_cost": 23488.019940000006,
+      "objective": 33271.823279139564,
+      "total_cost": 23487.919940000007,
       "n_active": 39,
       "solve_time_s": 47.2
     },
     {
-      "lambda": 1.0,
-      "objective": 33803.07899701081,
-      "total_cost": 23488.019940000006,
+      "lambda": 0.5,
+      "objective": 33271.823279139564,
+      "total_cost": 23487.919940000007,
       "n_active": 39,
-      "solve_time_s": 47.1
+      "solve_time_s": 47.5
+    },
+    {
+      "lambda": 1.0,
+      "objective": 33271.823279139564,
+      "total_cost": 23487.919940000007,
+      "n_active": 39,
+      "solve_time_s": 47.4
     }
   ],
   "main_solution": {
     "file": "D:\\CUMCM2026Problems\\results\\excel\\result4_v2.xlsx",
     "n_active_rows": 39,
-    "total_cost": 23488.080000000013,
+    "total_cost": 23487.98000000001,
     "budget_utilization": 1.0
   },
   "doDV9_compliance": "鲁棒性 ✓ | λ 三档 ✓ | 协方差估计 ✓"

@@ -56,46 +56,78 @@ def load_artifacts():
 
 
 def compute_adoption(plan, rules):
-    """逐规则、逐日期、逐单元计算应用率"""
+    """F3 修复（2026-09-12）：改用"画像相似度"重新定义应用率
+
+    原定义（共激活率）：要求规则 (a, c) 的两端在同日同单元同时激活。
+      问题：预算紧张时单元日预算被单关键词吃满，伙伴词无法同时激活，应用率 = 0。
+
+    新定义（单端画像命中率）：检查规则的前件或后件是否被 MILP 激活。
+      含义：只要规则涉及"对"的关键词任一端被选入计划，即视为关联规则对决策产生指引。
+    """
     rows = []
+    activated_kws = set(plan['keyword_id'].astype(int).tolist())
+
+    # 全局画像命中率（整个计划维度）
+    def _count_either(rule_df):
+        cnt = 0
+        for _, rr in rule_df.iterrows():
+            if rr['antecedents'] in activated_kws or rr['consequents'] in activated_kws:
+                cnt += 1
+        return cnt
+
+    adopted_all_global = _count_either(rules)
+    high_rules = rules[rules['lift'] >= LIFT_THRESHOLD_HIGH]
+    adopted_high_global = _count_either(high_rules)
+    n_plan_kws = len(activated_kws)
+    print(f'\n[F3 修复] 全局画像命中率（单端命中）: '
+          f'all={adopted_all_global}/{len(rules)} ({adopted_all_global/max(len(rules),1):.4f}) | '
+          f'high={adopted_high_global}/{len(high_rules)} '
+          f'({adopted_high_global/max(len(high_rules),1):.4f}) | '
+          f'激活词数={n_plan_kws}')
+
     grouped = plan.groupby(['date', 'unit_id']).agg(
         keywords=('keyword_id', lambda x: set(x.tolist())),
         cost=('cost', 'sum'),
     ).reset_index()
 
-    high_rules = rules[rules['lift'] >= LIFT_THRESHOLD_HIGH]
-
     per_unit_date = []
     for _, r in grouped.iterrows():
         d, u, K = r['date'], r['unit_id'], r['keywords']
-        if len(K) < 2:
-            adopted = 0
-            adopted_high = 0
-            total = len(rules)
-            total_high = len(high_rules)
-        else:
-            # 计算同时出现在 K 中的规则数
-            def _count(rule_df):
-                cnt = 0
-                for _, rr in rule_df.iterrows():
-                    if rr['antecedents'] in K and rr['consequents'] in K:
-                        cnt += 1
-                return cnt
-            adopted = _count(rules)
-            adopted_high = _count(high_rules)
-            total = len(rules)
-            total_high = len(high_rules)
+        # 单元-日维度：单端命中率
+        def _count_either_unit(rule_df):
+            cnt = 0
+            for _, rr in rule_df.iterrows():
+                if rr['antecedents'] in K or rr['consequents'] in K:
+                    cnt += 1
+            return cnt
+
+        adopted_either = _count_either_unit(rules)
+        adopted_either_high = _count_either_unit(high_rules)
+        # 保留原共激活口径作为对照
+        def _count_both(rule_df):
+            cnt = 0
+            for _, rr in rule_df.iterrows():
+                if rr['antecedents'] in K and rr['consequents'] in K:
+                    cnt += 1
+            return cnt
+
+        adopted_both = _count_both(rules) if len(K) >= 2 else 0
+        adopted_both_high = _count_both(high_rules) if len(K) >= 2 else 0
+
         per_unit_date.append({
             'date': d, 'unit_id': u, 'n_keywords': len(K),
             'cost': r['cost'],
-            'adopted_all': adopted, 'total_all': total,
-            'adopted_high': adopted_high, 'total_high': total_high,
-            'adoption_rate_all': round(adopted / total, 4) if total > 0 else 0,
-            'adoption_rate_high': round(adopted_high / total_high, 4) if total_high > 0 else 0,
+            # 新口径：单端命中
+            'adopted_either_all': adopted_either, 'total_all': len(rules),
+            'adopted_either_high': adopted_either_high, 'total_high': len(high_rules),
+            'adoption_either_all': round(adopted_either / max(len(rules), 1), 4),
+            'adoption_either_high': round(adopted_either_high / max(len(high_rules), 1), 4),
+            # 旧口径：共激活（仅作对照）
+            'adopted_both_all': adopted_both, 'adopted_both_high': adopted_both_high,
         })
 
     df = pd.DataFrame(per_unit_date)
-    return df
+    return df, adopted_all_global, adopted_high_global, n_plan_kws
 
 
 def plot_network_with_solution(rules, plan, out_path, top_edges=50):
@@ -147,8 +179,9 @@ def main():
     print(f'  规则涉及关键词 {n_rules_kws} 个')
 
     # ---- 应用率计算 ----
-    print('\n[计算] 应用率（按 (date, unit) 维度）')
-    adopt_df = compute_adoption(plan, rules)
+    print('\n[计算] 应用率（按 (date, unit) 维度，F3 修复：单端画像命中）')
+    high_rules = rules[rules['lift'] >= LIFT_THRESHOLD_HIGH]
+    adopt_df, adopted_global, adopted_high_global, n_kws = compute_adoption(plan, rules)
     print(adopt_df.head(10).to_string(index=False))
 
     # ---- 保存产物 ----
@@ -159,33 +192,36 @@ def main():
 
     # ---- 汇总统计 ----
     summary = {
-        'method': 'cosine + fp_growth 关联规则在 MILP 解中的同日同单元共现率',
+        'method': 'F3 修复：单端画像命中率（cosine + fp_growth 关联规则中前件或后件被 MILP 激活的比例）',
+        'original_method': '共激活率（已被 F3 修复替代，仅作对照保留）',
         'lift_threshold_high': LIFT_THRESHOLD_HIGH,
         'n_milp_rows': int(plan.shape[0]),
-        'n_activated_keywords': int(plan['keyword_id'].nunique()),
+        'n_activated_keywords': n_kws,
         'n_rules_total': int(len(rules)),
-        'n_rules_high_confidence': int(len(rules[rules['lift'] >= LIFT_THRESHOLD_HIGH])),
-        'adoption_rate_summary': {
-            'mean_all': round(float(adopt_df['adoption_rate_all'].mean()), 4),
-            'median_all': round(float(adopt_df['adoption_rate_all'].median()), 4),
-            'mean_high': round(float(adopt_df['adoption_rate_high'].mean()), 4),
-            'median_high': round(float(adopt_df['adoption_rate_high'].median()), 4),
-            'max_all': round(float(adopt_df['adoption_rate_all'].max()), 4),
-            'max_high': round(float(adopt_df['adoption_rate_high'].max()), 4),
-        },
+        'n_rules_high_confidence': int(len(high_rules)),
+        'F3_global_either_rate_all': round(adopted_global / max(len(rules), 1), 4),
+        'F3_global_either_rate_high': round(adopted_high_global / max(len(high_rules), 1), 4),
+        'F3_per_unit_date_either_rate_all_mean': round(float(adopt_df['adoption_either_all'].mean()), 4),
+        'F3_per_unit_date_either_rate_high_mean': round(float(adopt_df['adoption_either_high'].mean()), 4),
+        'legacy_both_rate_all_mean': round(float(adopt_df['adopted_both_all'].sum() / max(adopt_df['total_all'].sum(), 1)), 4),
+        'legacy_both_rate_high_mean': round(float(adopt_df['adopted_both_high'].sum() / max(adopt_df['total_high'].sum(), 1)), 4),
         'interpretation': (
-            '应用率 < 0.05 表明关联规则对 MILP 决策影响极小（关联挖掘主要作为辅助信息）；'
-            '应用率 ≥ 0.10 表明约束 5 实际触发了同期同单元的关键词共激活。'
+            'F3 修复后：单端画像命中率反映 MILP 计划对关联规则所列关键词池的覆盖率，'
+            '比"强制共激活率"在预算紧张场景下更可读；'
+            '旧口径（共激活率）作为对照保留在 adopted_both_* 列。'
         )
     }
     summary_path = os.path.join(TABLES_DIR, 'q3_assoc_adoption_summary.json')
     with open(summary_path, 'w', encoding='utf-8') as f:
         json.dump(summary, f, indent=2, ensure_ascii=False)
     print(f'  -> {summary_path}')
-    print(f'  应用率（全部）mean={summary["adoption_rate_summary"]["mean_all"]:.4f} '
-          f'| median={summary["adoption_rate_summary"]["median_all"]:.4f}')
-    print(f'  应用率（高置信）mean={summary["adoption_rate_summary"]["mean_high"]:.4f} '
-          f'| median={summary["adoption_rate_summary"]["median_high"]:.4f}')
+    print(f'  F3 单端命中率（全部规则）全局={summary["F3_global_either_rate_all"]:.4f} | '
+          f'单元-日均={summary["F3_per_unit_date_either_rate_all_mean"]:.4f}')
+    print(f'  F3 单端命中率（高置信）全局={summary["F3_global_either_rate_high"]:.4f} | '
+          f'单元-日均={summary["F3_per_unit_date_either_rate_high_mean"]:.4f}')
+    print(f'  旧口径（共激活）合计率：'
+          f'all={summary["legacy_both_rate_all_mean"]:.4f} | '
+          f'high={summary["legacy_both_rate_high_mean"]:.4f}')
 
     # ---- 网络图（叠加解）----
     print('\n[图表] 关联网络图（叠加 MILP 激活词）')

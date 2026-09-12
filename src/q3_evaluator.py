@@ -54,14 +54,19 @@ ACCURACY_TOL = 0.15  # 15% 误差带
 
 
 def proxy_accuracy_check(proxy, actual, tol=ACCURACY_TOL):
-    """§2.3 代理精度校验（绝对比值 + 相对相关性）"""
+    """§2.3 代理精度校验（绝对比值 + 相对相关性）
+
+    F1 修复（2026-09-12）：reg 预测改为 click × r_reg（CVR 口径），
+    原 cost × r_reg 公式因 annual_regs 全局分配存在结构性反相关。
+    """
     df = proxy.merge(actual, on='unit_id', how='inner')
     # 绝对比值：predicted = actual_cost × ratio
     df['pred_clicks'] = df['actual_cost'] * df['r_click']
     df['ratio_clicks'] = df['pred_clicks'] / df['actual_clicks'].clip(lower=1)
     df['pred_topimp'] = df['actual_cost'] * df['r_topimp']
     df['ratio_topimp'] = df['pred_topimp'] / df['actual_top_imps'].clip(lower=1)
-    df['pred_regs'] = df['actual_cost'] * df['r_reg']
+    # F1 修复：pred_regs = pred_clicks × r_reg（CVR 口径，不再用 cost × r_reg）
+    df['pred_regs'] = df['pred_clicks'] * df['r_reg']
     df['ratio_regs'] = df['pred_regs'] / df['actual_regs'].clip(lower=1)
     df['pass_clicks'] = (df['ratio_clicks'].between(1 - tol, 1 + tol)).astype(int)
     df['pass_topimp'] = (df['ratio_topimp'].between(1 - tol, 1 + tol)).astype(int)
@@ -103,7 +108,8 @@ def sensitivity_run(base_plan, proxy, sens_pcts=SENS_PCTS, sens_metrics=SENS_MET
             # 重算 click/browse/reg
             plan_s['click_s'] = plan_s['cost'] * plan_s['r_click']
             plan_s['browse_s'] = plan_s['click_s'] * 2.93
-            plan_s['reg_s'] = plan_s['cost'] * plan_s['r_reg']
+            # F1 修复：reg_s = click_s × r_reg
+            plan_s['reg_s'] = plan_s['click_s'] * plan_s['r_reg']
             plan_s['top_imp_s'] = plan_s['cost'] * plan_s['r_topimp']
             rows.append({
                 'metric': metric,

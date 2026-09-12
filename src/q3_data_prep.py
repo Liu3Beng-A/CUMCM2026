@@ -133,7 +133,11 @@ def main():
     # ---- Step 4: 代理变量法比值（§2.2.1）----
     # r_click = kw_全年点击 / kw_全年消费
     # r_browse = kw_全年浏览 / kw_全年消费
-    # r_reg ≈ unit_daily 总注册 / unit_daily 总消费
+    # r_reg 修复（2026-09-12 F1）：原公式 annual_regs / annual_cost 存在结构性偏差
+    #   因 reg_daily 是全局日级，merge 到 unit 后每个 unit 拿到相同的 annual_regs，
+    #   r_reg ≈ const/annual_cost，Pearson=-0.096 是结构性反相关而非真实预测。
+    # 新公式：r_reg 改为全局 cvr = 总注册 / 总点击，
+    #   下游 reg = click × r_reg（不再用 cost × r_reg）
     # r_topimp = kw_全年上方位展现量 / kw_全年消费
 
     # 关键词级代理比值（每个入选项）
@@ -145,24 +149,20 @@ def main():
         })
     ).reset_index()
 
-    # 单元级注册转化率代理
-    unit_annual = unit_daily.groupby('unit_id').agg(
-        annual_cost=('cost', 'sum'),
-        annual_clicks=('clicks', 'sum'),
-    )
+    # 全局 CVR（注册转化率：注册/点击）= 单值不随 unit 变化
     reg_daily['date'] = pd.to_datetime(reg_daily['date']).dt.strftime('%Y-%m-%d')
-    reg_annual = unit_daily.merge(reg_daily, on='date', how='left')
-    reg_annual = reg_annual.groupby('unit_id').agg(
-        annual_regs=('regs', 'sum'),
-    )
-    unit_annual = unit_annual.join(reg_annual)
-    unit_annual['r_reg'] = unit_annual['annual_regs'] / unit_annual['annual_cost']
-    proxy_kw = proxy_kw.merge(
-        unit_annual[['r_reg']].reset_index(), on='unit_id', how='left'
-    )
-    proxy_kw['r_reg'] = proxy_kw['r_reg'].fillna(proxy_kw['r_reg'].median())
+    reg_annual_total = reg_daily['regs'].sum()  # 全年总注册 = 85,313
+    clicks_annual_total = unit_daily['clicks'].sum()  # 全年总点击 = 834,815
+    cvr_global = reg_annual_total / max(clicks_annual_total, 1)  # ≈ 0.1022
+    print(f"\n[F1 修复] 全局 CVR = {cvr_global:.6f} "
+          f"(annual_regs={reg_annual_total:,} / annual_clicks={clicks_annual_total:,})")
 
-    print(f"\n[Step 4] 代理比值（按推广单元聚合）")
+    # r_reg 字段统一赋值为全局 cvr（语义改为 click → reg 转化率）
+    proxy_kw['r_reg'] = cvr_global
+    # 保留 cvr_global 字段方便下游校验
+    proxy_kw['cvr_global'] = cvr_global
+
+    print(f"\n[Step 4] 代理比值（按推广单元聚合，F1 修复后）")
     print(proxy_kw.describe().to_string())
     proxy_kw.to_pickle(os.path.join(out_dir, 'q3_proxy_ratios.pkl'))
     print(f"  -> q3_proxy_ratios.pkl 写入 OK")

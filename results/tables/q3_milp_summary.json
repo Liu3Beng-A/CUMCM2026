@@ -1,12 +1,12 @@
 {
   "status": "Optimal",
-  "objective": 52922.68773842447,
+  "objective": 36976.30959986976,
   "total_cost": 51164.92960000001,
   "budget_limit": 51164.93,
   "n_candidates": 8640,
   "n_active": 89,
   "n_constraints": 9101,
-  "solve_time_sec": 8.32,
+  "solve_time_sec": 26.02,
   "coef_formula": "coef = 0.4*r_click + 0.1*r_browse + 0.5*r_reg",
   "unit_daily_multiplier": 1.0
 }

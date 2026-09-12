@@ -135,8 +135,9 @@ def solve_two_stage_sp(cv_df, scenarios, budget, kw_per_unit, proxy_dict):
 
     prob += pulp.lpSum(coef.get(v[0], 0.5) * x[i] for i, v in enumerate(var_keys)), 'value'
 
-    # 总预算
-    prob += pulp.lpSum(x[i] for i in range(n_var)) <= budget, 'budget'
+    # 总预算（F2 修复 2026-09-12：减去 0.10 元浮点缓冲，确保 sum(cost) ≤ 23,488.02）
+    budget_strict = budget - 0.10  # 留 0.10 元给 CBC 浮点累计误差
+    prob += pulp.lpSum(x[i] for i in range(n_var)) <= budget_strict, 'budget'
 
     # big-M
     for i in range(n_var):

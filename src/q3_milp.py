@@ -234,10 +234,11 @@ def main():
         if u in proxy_dict:
             p = proxy_dict[u]
         else:
-            p = {'r_click': 0.5, 'r_browse': 1.0, 'r_reg': 0.5, 'r_topimp': 0.27}
+            p = {'r_click': 0.5, 'r_browse': 1.0, 'r_reg': 0.1022, 'r_topimp': 0.27}
         click = cost * p['r_click']
         browse = click * 2.93  # 浏览/点击 比 (历史均值)
-        reg = cost * p['r_reg']
+        # F1 修复（2026-09-12）：reg = click × CVR（避免 cost × r_reg 的结构性反相关）
+        reg = click * p['r_reg']
         top_imp = cost * p['r_topimp']
         rows.append({
             'date': c[0], 'unit_id': u, 'keyword_id': kw_id,

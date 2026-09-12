@@ -168,7 +168,9 @@ def solve_lambda(cov_df, scenarios, budget, kw_per_unit, proxy_dict, kw_pool_pro
 
     prob += pulp.lpSum(coef.get(v[0], 0.5) * x[i] for i, v in enumerate(var_keys)), 'value'
 
-    prob += pulp.lpSum(x[i] for i in range(n_var)) <= budget, 'budget'
+    # F2 修复（2026-09-12）：总预算减去 0.10 元浮点缓冲，确保 sum(cost) ≤ budget
+    budget_strict = budget - 0.10
+    prob += pulp.lpSum(x[i] for i in range(n_var)) <= budget_strict, 'budget'
 
     for i in range(n_var):
         prob += x[i] <= M * y[i], f'bigM_{i}'
