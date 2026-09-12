@@ -1,0 +1,40 @@
+{
+  "same_period": "2025-09-11~17",
+  "same_period_budget": 23488.019999999993,
+  "history_window": "2025-08-18 ~ 2025-09-16",
+  "history_days": 30,
+  "n_units_cv": 11,
+  "mean_cv": {
+    "cv_cpc": 0.20620546164934997,
+    "cv_impressions": 0.7848261096941311,
+    "cv_top_imp_pos": 0.8077011368904085,
+    "cv_clicks": 0.9470306071240632,
+    "cv_browses": 0.9447642138978032,
+    "cv_regs": 1.3570239012856413
+  },
+  "median_cv": {
+    "cv_cpc": 0.15947975544118495,
+    "cv_impressions": 0.42988163669819596,
+    "cv_top_imp_pos": 0.4950185129317632,
+    "cv_clicks": 0.5721635445795868,
+    "cv_browses": 0.5717912578746425,
+    "cv_regs": 0.6952213570491659
+  },
+  "max_cv": {
+    "cv_cpc": 0.45483766238779927,
+    "cv_impressions": 2.8495853878032067,
+    "cv_top_imp_pos": 2.8457983823448387,
+    "cv_clicks": 2.46999377184914,
+    "cv_browses": 2.438417771025638,
+    "cv_regs": 5.47722557505166
+  },
+  "factors": [
+    "cpc",
+    "impressions",
+    "top_imp_pos",
+    "clicks",
+    "browses",
+    "regs"
+  ],
+  "correlation_model": "independent (PoC simplification)"
+}

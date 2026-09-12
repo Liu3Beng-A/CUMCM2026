@@ -1,0 +1,16 @@
+{
+  "method": "Two-Stage Stochastic Programming (scenario 0 optimization)",
+  "n_scenarios": 20,
+  "budget": 23488.019999999993,
+  "n_units": 11,
+  "n_active_rows": 39,
+  "total_cost": 23488.019940000006,
+  "mean_cv": {
+    "cpc": 0.20620546164934997,
+    "impressions": 0.7848261096941311,
+    "top_imp_pos": 0.8077011368904085,
+    "clicks": 0.9470306071240632,
+    "browses": 0.9447642138978032,
+    "regs": 1.3570239012856413
+  }
+}
