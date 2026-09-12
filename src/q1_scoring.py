@@ -745,11 +745,25 @@ def run_scoring():
     plan_scores.to_csv(out_csv2, encoding='utf-8-sig')
     print(f'[save] {out_csv2}', flush=True)
 
-    # 综合评分输出
+    # 综合评分输出（扣分前快照，给敏感性分析用）
     print('\n' + '=' * 40, flush=True)
-    print(f'SEM投放策略合理性综合评分: {result["overall_score"]} / 100', flush=True)
-    print(f'评级: {result["grade"]}', flush=True)
+    print(f'[before-penalty] 综合评分: {result["overall_score"]} / 100', flush=True)
+    print(f'[before-penalty] 评级: {result["grade"]}', flush=True)
     print('=' * 40, flush=True)
+
+    # === P0-7 热修复：自动注入节日扣分，避免 JSON 停在扣分前 64.6/C ===
+    # 根因：3 个入口（q1_main / q1_plots / q1_scoring 的 __main__）只调 run_scoring()
+    #       从不调 apply_penalty_to_score()，导致任何重跑都会把 JSON 改回扣分前
+    # 解法：单点集成到这里，未来所有入口自动获得扣分后值
+    try:
+        from src.q1_holiday_penalty import apply_penalty_to_score
+        apply_penalty_to_score()
+        #扣分改写了 JSON 文件，重新读取拿到最新值（含 50.7/D）
+        with open(out_json, 'r', encoding='utf-8') as f:
+            result = json.load(f)
+        print(f'[P0-7 hotfix] 扣分已注入 → {result["overall_score"]} / {result["grade"]}', flush=True)
+    except Exception as e:
+        print(f'[P0-7 hotfix] ⚠️ apply_penalty 跳过: {e}（result 仍为扣分前 64.6）', flush=True)
 
     return result
 

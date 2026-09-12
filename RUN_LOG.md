@@ -819,3 +819,28 @@ esults/figures/README.md（28 行）：命名约定 + 引用规范 + 历史废�
 [2026-09-13 00:41] **I1 重新注入扣分**：python -m src.q1_holiday_penalty；JSON 回到 50.7 / D（偏差）/ 投放策略 47.4 | results/tables/q1_score.json 8.2 KB | OK
 [2026-09-13 00:41] **I2 重画雷达图（直调函数，不经覆写路径）**：python -c 'fig_score_radar(r)' 读扣分后 JSON；cats[3] s=47.40；自定义 cats_3 r_label=63（用户最新调整值，保留） | results/figures/q1_score_radar.png 164.2 KB | OK
 [2026-09-13 00:41] **🟢 数据已恢复扣分后**：overall=50.7 / grade=D（偏差）/ 4 维度=52.4/57.6/51.9/47.4 | - | OK
+[2026-09-13 00:48] **P0-7 hotfix 方案 B 选定** | 用户确认 | OK
+[2026-09-13 00:50] **P0-7 S2 修改 src/q1_scoring.py run_scoring 末尾插入 P0-7 hotfix 块（apply_penalty_to_score + JSON reload）** | src/q1_scoring.py 773 行 | OK
+[2026-09-13 00:50] **P0-7 S3 备份 q1_score.json 到 snapshot** | results/snapshots/pre_p07_fix_20260913/q1_score.json (8389 bytes) | OK
+[2026-09-13 00:51] **P0-7 S4 首次验证 q1_scoring: [before-penalty]=64.6/C → [P0-7 hotfix]=50.7/D ✓** | q1_score.json mtime=00:51:09 | OK
+[2026-09-13 00:52] **P0-7 S5a 重跑 regen_figures.py: 发现 cats[3] s=17.40 (双重扣分 bug), JSON 变 36.8/E** | q1_score.json (corrupted) | FAIL
+[2026-09-13 00:52] **P0-7 S5b 根因诊断: run_scoring hotfix 注入扣分后 regen_figures 又调一次 → 双重扣分** | 诊断 | OK
+[2026-09-13 00:52] **P0-7 S5c 修改 src/q1_holiday_penalty.py 加幂等保护 (检测 original_score 已存在则恢复基准再扣分)** | src/q1_holiday_penalty.py 416 行 | OK
+[2026-09-13 00:53] **P0-7 S5d 从备份恢复 JSON 到 50.7/D** | q1_score.json | OK
+[2026-09-13 00:53] **P0-7 S5e 重跑 regen_figures: cats[3] s=47.40 ✓, JSON 仍 50.7/D ✓** | q1_score_radar.png + q1_score_breakdown.png | OK
+[2026-09-13 00:53] **P0-7 S5f 重跑 q1_baseline: q1_baseline_rank_scatter.png 已重生成** | q1_baseline_rank_scatter.png mtime=00:53:21 | OK
+[2026-09-13 00:53] **P0-7 S5g 重跑 q1_sensitivity: 龙卷风+敏感性曲线+CRITIC比例敏感性 3 图已重生成** | q1_tornado.png + q1_sensitivity_curves.png + q1_mix_ratio_curve.png | OK
+[2026-09-13 00:53] **P0-7 S5h 重跑 regen_figures 含 heatmap + penalty_compare** | q1_heatmap.png + q1_penalty_compare.png mtime=00:53:08 | OK
+[2026-09-13 00:56] **P0-7 S5i 重跑 q1_generalization: time_split + bootstrap 2 图已重生成** | q1_generalization_time_split.png + q1_generalization_bootstrap.png mtime=00:56:36 | OK
+[2026-09-13 00:56] **P0-7 S5j 启动 q1_robustness_aug 后台 (n_boot=100 × 37 节日 × 2 模型 = 7400 Prophet)** | q1_robustness_aug.png (待生成) | -
+[2026-09-13 01:03] **P0-7 用户回复"继续跑 100": 保留 n_boot=100, 等待完成** | - | OK
+[2026-09-13 01:05] **P0-7 Step7 RUN_LOG 追加 (S2-S5j + 用户确认)** | RUN_LOG.md 64280 bytes | OK
+[2026-09-13 01:10] **P0-7 S6a 用户回"继续跑 100", 后台 n_boot=100×37×2=7400 Prophet 拟合中** | q1_robustness_aug (待生成) | -
+[2026-09-13 01:13] **P0-7 S6b 修复 plot_robustness_figure bug: 异常日 3/19 不在 8 月子集 → 条件分支** | src/q1_robustness_aug.py 1191 行 | OK
+[2026-09-13 01:14] **P0-7 S6c 用 CSV 重画 robustness_aug PNG (宽转长格式, 6 行 Bootstrap 数据)** | q1_robustness_aug.png 441900 bytes mtime=01:14:45 | OK
+[2026-09-13 01:15] **P0-7 S7 全链路验收 9/9 PNG 时间戳 >= JSON (00:53:06)** | tools/_verify_p07_final.py | OK
+[2026-09-13 01:15] **P0-7 ✅ 全部完成: JSON 50.7/D 永久保持 + 9/9 PNG 验收 + 双幂等保护 (run_scoring hotfix + apply_penalty idempotent)** | - | OK
+[2026-09-13 00:53] **P0-7 S5c2 修改 src/q1_holiday_penalty.py 加幂等保护 (检测 original_score 已存在则恢复基准再扣分, 解决 regen_figures 双重扣分 bug)** | src/q1_holiday_penalty.py 416 行 | OK
+[2026-09-13 01:16] **P0-7 S6d 后台 PID 11504 q1_robustness_aug 自然结束 + plot bug 已修复 + PNG 重生成功 (441,900 bytes) | results/figures/q1_robustness_aug.png mtime=01:14:45 | OK
+[2026-09-13 01:17] **综合状态审查 + 最终交付清单启动**：扫 results/tables (24 csv+json) / figures (21 q1_*.png 活跃) / excel (7 文件) / snapshots (8 目录) | - | -
+[2026-09-13 01:18] **WORK_STATE §6 完成态审查清单追加**：扫描 24 表/21 图/7 excel/8 快照；Q1 9/9 PNG 验收；Q2 2228行/Q3 90行/Q4 40行均严格对齐模板；标 2 caveat + 2 待办 + 2 永久证据 | WORK_STATE.md 19.5 KB | OK

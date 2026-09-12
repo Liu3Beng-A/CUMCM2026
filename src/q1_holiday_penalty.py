@@ -289,7 +289,17 @@ def apply_penalty_to_score(score_json_path=None):
     with open(score_json_path, 'r', encoding='utf-8') as f:
         result = json.load(f)
 
+    # P0-7 hotfix 配套：幂等性保护
+    # 根因：run_scoring() 内部已注入扣分；若外部（如 regen_figures.py）再调一次
+    #       会把 47.4 - 30 = 17.4，造成 double penalty (JSON = 36.8/E)
+    # 解法：检测 dimensions['投放策略与时间'].original_score 是否已存在
+    #       - 若已存在：用 original_score 作为基准（恢复后再减 penalty），保证可重复
+    #       - 若不存在：用当前 score 作为基准（首次注入场景）
     old_time_score = result['dimensions']['投放策略与时间']['score']
+    if 'original_score' in result['dimensions']['投放策略与时间']:
+        # 幂等分支：恢复到 original_score，再扣一次 penalty（结果不变）
+        old_time_score = result['dimensions']['投放策略与时间']['original_score']
+        print(f'[idempotent] 检测到已有 original_score={old_time_score}，恢复基准后再扣分', flush=True)
     new_time_score = max(0, old_time_score - penalty_result['total_penalty'])
     result['dimensions']['投放策略与时间']['score'] = round(new_time_score, 1)
     result['dimensions']['投放策略与时间']['original_score'] = old_time_score
@@ -298,8 +308,12 @@ def apply_penalty_to_score(score_json_path=None):
 
     # 改-6：同步更新每个方案的"投放策略与时间"维度
     # 原因：Bootstrap 扣分基于全公司日历，每个方案都受影响
+    # P0-7 幂等保护：若 plan_scores[pid]._投放策略与时间_原值 已存在，使用它作基准
     for pid, sc in result.get('plan_scores', {}).items():
-        old_p_time = sc['投放策略与时间']
+        if '_投放策略与时间_原值' in sc:
+            old_p_time = sc['_投放策略与时间_原值']
+        else:
+            old_p_time = sc['投放策略与时间']
         new_p_time = max(0, old_p_time - penalty_result['total_penalty'])
         sc['投放策略与时间'] = round(new_p_time, 1)
         sc['_投放策略与时间_原值'] = old_p_time

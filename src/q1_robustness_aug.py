@@ -718,18 +718,25 @@ def plot_robustness_figure(original_daily, clean_daily,
               for d in aug_sorted['日期']]
     bars = ax.bar(range(len(aug_sorted)), aug_sorted['总消费额'], color=colors, alpha=0.7)
 
-    # 标注异常日
-    abnormal_idx = aug_sorted[aug_sorted['日期'] == abnormal_dt].index[0]
-    local_idx = list(aug_sorted.index).index(abnormal_idx)
-    ax.annotate(f'异常日\n{abnormal_date}\nZ={z_score:.2f}',
-                xy=(local_idx, aug_sorted.loc[abnormal_idx, '总消费额']),
-                xytext=(local_idx + 2, aug_sorted.loc[abnormal_idx, '总消费额'] * 1.1),
-                arrowprops=dict(arrowstyle='->', color=COLORS['danger']),
-                fontsize=9, color=COLORS['danger'], fontweight='bold')
+    # 标注异常日（仅当异常日在 8 月子集内时；P0-3 后异常日为 3/19 不在 8 月）
+    abnormal_in_aug = aug_sorted[aug_sorted['日期'] == abnormal_dt]
+    if len(abnormal_in_aug) > 0:
+        abnormal_idx = abnormal_in_aug.index[0]
+        local_idx = list(aug_sorted.index).index(abnormal_idx)
+        ax.annotate(f'异常日\n{abnormal_date}\nZ={z_score:.2f}',
+                    xy=(local_idx, aug_sorted.loc[abnormal_idx, '总消费额']),
+                    xytext=(local_idx + 2, aug_sorted.loc[abnormal_idx, '总消费额'] * 1.1),
+                    arrowprops=dict(arrowstyle='->', color=COLORS['danger']),
+                    fontsize=9, color=COLORS['danger'], fontweight='bold')
+    else:
+        # 异常日不在 8 月（P0-3 后场景）：在标题处说明
+        abnormal_str = abnormal_dt.strftime('%m-%d') if hasattr(abnormal_dt, 'strftime') else str(abnormal_dt)[:10]
+        ax.set_title(f'(a) 2025年8月每日消费额（异常日 {abnormal_str} Z={z_score:.2f} 不在 8 月，已剔除）', fontsize=10)
 
     ax.set_xlabel('8月日期序号')
     ax.set_ylabel('消费额（元）')
-    ax.set_title('(a) 2025年8月每日消费额（红色=异常日）')
+    if len(abnormal_in_aug) > 0:
+        ax.set_title('(a) 2025年8月每日消费额（红色=异常日）')
     ax.set_xticks(range(0, len(aug_sorted), 3))
     ax.set_xticklabels([aug_sorted['日期'].iloc[i].strftime('%m/%d')
                         for i in range(0, len(aug_sorted), 3)],

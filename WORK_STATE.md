@@ -122,8 +122,8 @@
   - `results/tables/q1_holiday_penalty.json` (-30 封顶)
   - `results/tables/q1_bootstrap_ci.csv` (37 节日 × 100 次 + BH FDR)
 - **Q2 输出**（✅ 已完成 + 6 项稳健性分析）：`results/excel/result2.xlsx`（严格对齐 `data/raw/attachments/附件2/result2.xlsx` 模板列，统一汇总至 `results/excel/`）+ 6 项稳健性产物：`q2_thresholds_compare.json` / `q2_field_robustness.csv` / `q2_extreme_audit_v2.csv` / `q2_zero_keyword_breakdown.csv` / `q2_robustness_report.json` / pkl 新增 `异常标记` 列
-- **Q3 输出**（⏸ 待重做）：`results/excel/result3.xlsx`（严格对齐 `data/raw/attachments/附件2/result3.xlsx` 模板列）
-- **Q4 输出**（⏸ 待重做）：`results/excel/result4.xlsx`（严格对齐 `data/raw/attachments/附件2/result4.xlsx` 模板列）
+- **Q3 输出**（✅ 已完成 + 7 项自检 6 PASS + 1 CAVEAT）：`results/excel/result3.xlsx`（90 行 × 9 列：日期 / 方案ID / 推广单元 / 关键词 / 投入金额 / 预期展位 / 预期点击 / 预期浏览 / 预期注册）
+- **Q4 输出**（✅ 已完成 + 7 项自检 7 PASS + 1 精度溢出 caveat）：`results/excel/result4.xlsx`（40 行 × 9 列：日期 / 方案ID / 推广单元 / 关键词 / 投入金额 / 预期展位 / 预期点击 / 预期浏览 / 预期注册）
 
 ---
 
@@ -219,3 +219,52 @@
 - 检查 `paper/paper.md` §5.2（**已确认：用户说论文先不做**）
 - 按真实题面规划 Q3（2025-02-01~08 + 2025-08-01~08 共 16 天，关键词×天，预算约束）
 - 按真实题面规划 Q4（2026-09-11~17 共 7 天，关键词×天，6 因素不确定性）
+---
+
+## 6. 最终交付检查清单（2026-09-13 01:17 综合状态审查）
+
+> 此次审查扫了：results/tables (24 csv+json) / results/figures (21 q1_*.png 活跃) / results/excel (7 文件) / results/snapshots (8 目录) / issue (7 md) / paper (4 md+1 docx)
+
+### ✅ 已交付
+
+| 类别 | 文件 | 状态 |
+|------|------|------|
+| Q1 综合分 | `results/tables/q1_score.json` (50.7 / D偏差) | ✅ |
+| Q1 权重 | `results/tables/q1_weights.json` (12.51/14.17/27.10/46.22%) | ✅ |
+| Q1 节日扣分 | `results/tables/q1_holiday_penalty.json` (-30) | ✅ |
+| Q1 9 图 | `results/figures/q1_*.png` (21 活跃 + 2 备份) | ✅ 9/9 PNG mtime >= JSON (00:53:06) |
+| Q2 分类 | `results/excel/result2.xlsx` (2228 行 × 8 列严格对齐模板) | ✅ |
+| Q2 稳健性 | `q2_thresholds_compare.json` / `q2_field_robustness.csv` / `q2_extreme_audit_v2.csv` / `q2_zero_keyword_breakdown.csv` / `q2_robustness_report.json` | ✅ |
+| Q3 投放 | `results/excel/result3.xlsx` (90 行 × 9 列严格对齐模板) | ✅ |
+| Q4 不确定性 | `results/excel/result4.xlsx` (40 行 × 9 列严格对齐模板) | ✅ |
+| Q4 6 指标扩展 | `results/excel/q4_6metrics_extended.csv` + v2 | ✅ |
+| 论文 | `paper/paper.md` (83 KB, 1081 行) + `paper/q1_section_5_1.md` + `paper/paper_appendix_q234.md` | ✅ |
+| 论文框架 docx | `paper/SEM广告投放策略优化_论文框架.docx` | ✅ |
+| 评估报告 | `evaluation_q1.md` (11.7 KB) | ✅ |
+| Q1 文档 | `issue/issue_q1.md` + `issue/issue_q1_methods.md` + `issue/q1_code_review_report.md` + `issue/q1_fix_plan.md` | ✅ |
+| Q2 文档 | `issue/q2_implementation_plan.md` (18.5 KB) | ✅ |
+| Q3 文档 | `issue/q3_method.md` (6.2 KB) | ✅ |
+| Q4 文档 | `issue/q4_method.md` (6.8 KB) | ✅ |
+| 方法架构 | `Q3Q4_Method_Architecture.md` (47.3 KB) | ✅ |
+| 偏差报告 | `BIAS_REPORT.md` (11.6 KB) | ✅ |
+| PoC 报告 | `PoC_REPORT.md` (8.7 KB) | ✅ |
+| 总览/索引 | `README.md` + `INDEX.md` + `FINAL_REVIEW.md` | ✅ |
+| 交接 prompt | `HANDOFF_PROMPT.md` (14.6 KB) | ✅ |
+| 日志 | `RUN_LOG.md` (67 KB) / `WORK_STATE.md` (16 KB) / `DECISION_LOG.md` (16 KB) | ✅ |
+| 图表追踪 | `CHART_FIX_TRACKER.md` (5.7 KB) | ✅ |
+| 8 个快照目录 | `results/snapshots/{hallucination_v1, mdc_v2, mdc_v3, phase0, phase2, pre_p02_p11_fix, pre_p07_fix, pre_q2_fix}_*/` | ✅ |
+
+### ⚠️ 已知 caveat（论文已诚实声明）
+
+1. **Q3 §5.3.4 注册代理失效**：share-Pearson=-0.096 < 0.3 通过标准 → 注册预测 37,123 标为代理上限
+2. **Q4 §5.4.5 投入精度溢出**：投入超 0.06 元 = 0.0003% PuLP 浮点残留 → 论文声明精度放宽
+
+### 🟡 待办（仅剩 2 项）
+
+1. **project-context.mdc 仍标 Q2/Q3/Q4 待重做**（已 stale，WORK_STATE §6 已更新"已交付"）—— 下次启动前先修订 mdc
+2. **src/_archive/q3_optimizer.py + q4_uncertainty.py**：旧 hallucination v1 备份代码（永久保留，不删）—— 已标注在 snapshots/
+
+### 🚫 不可删（永久证据）
+
+- `results/snapshots/hallucination_v1_20260912/` —— 29 文件错位产物（事故证据）
+- `src/_archive/` —— 旧版本代码归档
