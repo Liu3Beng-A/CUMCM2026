@@ -1,0 +1,17 @@
+{
+  "method": "cosine + fp_growth 关联规则在 MILP 解中的同日同单元共现率",
+  "lift_threshold_high": 0.7,
+  "n_milp_rows": 89,
+  "n_activated_keywords": 60,
+  "n_rules_total": 100,
+  "n_rules_high_confidence": 100,
+  "adoption_rate_summary": {
+    "mean_all": 0.0,
+    "median_all": 0.0,
+    "mean_high": 0.0,
+    "median_high": 0.0,
+    "max_all": 0.0,
+    "max_high": 0.0
+  },
+  "interpretation": "应用率 < 0.05 表明关联规则对 MILP 决策影响极小（关联挖掘主要作为辅助信息）；应用率 ≥ 0.10 表明约束 5 实际触发了同期同单元的关键词共激活。"
+}

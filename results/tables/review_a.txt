@@ -1,0 +1,146 @@
+﻿=== results/excel/ ===
+       859  README.md
+      5921  q4_6metrics_extended.csv
+      5910  q4_6metrics_extended_v2.csv
+     65637  result2.xlsx
+      8785  result3.xlsx
+      6687  result4.xlsx
+      6667  result4_v2.xlsx
+
+=== results/tables/q4* ===
+      6706  comprehensive_assessment_20260912.json
+      3786  comprehensive_assessment_view.txt
+       353  q1_baseline_comparison_pre_holiday.csv
+        96  q1_baseline_corr.csv
+     10381  q1_bootstrap_ci.csv
+      1589  q1_bootstrap_ci_6holidays.csv
+       608  q1_bounce_cluster_summary.csv
+     45140  q1_bounce_clusters.csv
+      1032  q1_bounce_interpretation.md
+      1614  q1_generalization_bootstrap.csv
+       316  q1_generalization_time_split.csv
+      4493  q1_holiday_contribution.csv
+      2370  q1_holiday_penalty.json
+       503  q1_mix_ratio_sensitivity.csv
+       277  q1_plan_scores.csv
+     29071  q1_prophet_residual.csv
+       295  q1_robustness_aug.csv
+       304  q1_robustness_bootstrap.csv
+       426  q1_robustness_score.csv
+      8389  q1_score.json
+      2973  q1_score_breakdown.csv
+      1781  q1_sensitivity.csv
+       283  q1_sensitivity_summary.csv
+     17543  q1_summary.json
+       221  q1_weights.csv
+      1135  q1_weights.json
+       324  q1_zero_score_diagnosis.csv
+      2181  q2_check_report.json
+      9476  q2_extreme_audit.csv
+     11609  q2_extreme_audit_v2.csv
+       508  q2_field_robustness.csv
+      2107  q2_robustness_report.json
+      3214  q2_thresholds.json
+       987  q2_thresholds_compare.json
+      1073  q2_unit_cluster_summary.csv
+      4895  q3_assoc_adoption.csv
+       629  q3_assoc_adoption_summary.json
+     12398  q3_keyword_assoc_rules.csv
+       325  q3_milp_summary.json
+      4888  q3_must_cooccur_rules.csv
+      2810  q3_proxy_accuracy.csv
+       769  q3_proxy_accuracy.json
+      1567  q3_sensitivity_summary.csv
+       204  q4_lambda_robustness.csv
+       450  q4_two_stage_summary.json
+      1194  q4_two_stage_v2_summary.json
+      1421  q4_v2_run_log.txt
+         0  review_a.txt
+
+=== results/figures/q4* ===
+    166484  q1_baseline_rank_scatter.png
+    523586  q1_bid_strategy.png
+    332317  q1_bootstrap_ci.png
+    336955  q1_bounce_clusters.png
+    356770  q1_bounce_tsne.png
+    394491  q1_design_quality.png
+    100430  q1_generalization_bootstrap.png
+    315269  q1_generalization_time_split.png
+    263263  q1_heatmap.png
+    215085  q1_holiday_boxplot.png
+    344398  q1_keyword_management.png
+    144672  q1_mix_ratio_curve.png
+    107089  q1_penalty_compare.png
+    733120  q1_prophet_cost.png
+    675851  q1_prophet_reg.png
+    435137  q1_robustness_aug.png
+    109771  q1_score_breakdown.png
+    208645  q1_score_radar.png
+    192252  q1_sensitivity_curves.png
+    657459  q1_time_pattern.png
+    142039  q1_tornado.png
+     62711  q2_class_distribution.png
+    130757  q2_class_pie.png
+    144966  q2_extreme_audit.png
+     97965  q2_threshold_sensitivity.png
+    135658  q2_unit_class_stacked.png
+    172050  q3_assoc_network.png
+    187752  q3_assoc_network_with_solution.png
+    123774  q3_daily_cost.png
+    147942  q3_keyword_cooccurrence.png
+    106296  q3_sensitivity.png
+    160062  q3_unit_date_heatmap.png
+    103989  q4_cv_compare.png
+    100239  q4_factor_correlation.png
+     55665  q4_lambda_robustness.png
+    111097  q4_uncertainty_distribution.png
+    118304  q4_unit_date_heatmap.png
+
+=== data/processed/q4 (新加) ===
+      1099  q4_budget_ceiling.pkl
+      5105  q4_copula_scenarios_sample.pkl
+       952  q4_factor_cov_matrix.csv
+      3347  q4_factor_cov_summary.json
+      4674  q4_optimal_plan.pkl
+     13464  q4_same_period_2025.pkl
+      1117  q4_uncertainty_summary.json
+      1075  q4_unit_budget_ceiling.pkl
+      1601  q4_unit_cv.pkl
+
+=== A1 协方差矩阵 (6 因子) ===
+               cpc  impressions  top_imp  clicks  browses   regs
+factor                                                          
+cpc          1.000       -0.037    0.033   0.302    0.302  0.194
+impressions -0.037        1.000    0.810   0.767    0.767  0.654
+top_imp      0.033        0.810    1.000   0.778    0.778  0.676
+clicks       0.302        0.767    0.778   1.000    1.000  0.872
+browses      0.302        0.767    0.778   1.000    1.000  0.872
+regs         0.194        0.654    0.676   0.872    0.872  1.000
+
+=== A3 result4_v2.xlsx ===
+行数: 39 | 列对齐: True
+投入: 23488.08 / 23488.02
+
+=== A3 λ 三档对比 ===
+ lambda    objective  total_cost  n_active  solve_time_s
+    0.0 33803.078997 23488.01994        39          47.1
+    0.5 33803.078997 23488.01994        39          47.2
+    1.0 33803.078997 23488.01994        39          47.1
+
+=== A4 关联应用率 ===
+日期-单元组: 89 | 平均每组关键词: 1.0
+n_keywords 直方:
+n_keywords
+1    89
+应用率（全部）: 0.0 | max: 0.0
+应用率（高置信）: 0.0 | max: 0.0
+
+A4 summary:
+{
+  "mean_all": 0.0,
+  "median_all": 0.0,
+  "mean_high": 0.0,
+  "median_high": 0.0,
+  "max_all": 0.0,
+  "max_high": 0.0
+}

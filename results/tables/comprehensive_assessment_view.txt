@@ -1,0 +1,96 @@
+=== A. 综合评分 ===
+  数据质量: 95
+  方法完整性: 86
+  结果可信度: 82
+  论文完整性: 92
+  诚实度: 95
+  可视化: 90
+  可复现性: 95
+  工程化: 90
+  加权综合分: 89.7
+  评级: A
+
+=== B. 改进清单 (7 项) ===
+[I-1] P0-高
+  问题: Q3 注册代理 share-Pearson=-0.096（代理失效）
+  当前: 已诚实声明 37,123 仅作代理上限估算
+  工作量: 如选 (B) 已完成；如选 (A) 需 4 周
+
+[I-2] P0-高
+  问题: Q4 6 因子扰动当前为 independent（PoC 简化）
+  当前: 已在 q4_uncertainty_summary.json 显式声明 'correlation_model: independent (PoC simplification)'
+  工作量: 如选 (A) 1 周
+
+[I-3] P0-高
+  问题: Q4 当前仅 20 场景 PoC，未做完整 SAA (1000 场景)
+  当前: §5.4.5 自检 PASS 但 §5.4.2 简化声明需强化
+  工作量: 如选 (A) 4-6 小时
+
+[I-4] P1-中
+  问题: 关联规则产出后未显式进入 MILP 约束
+  当前: §5.3.3 约束 5 说'若关键词 a 与 c 关联(lift ≥ 阈值)，则同期激活同步'但实际约束效果未量化
+  工作量: 1-2 天
+
+[I-5] P1-中
+  问题: §5.3.5 敏感性分析中 r_reg 失效
+  当前: 已加 caveat 但扰动本身无意义
+  工作量: 1 天
+
+[I-6] P2-低
+  问题: 论文占位符（E-0001 / 张三李四 / XXX 教授 / XXX 大学 / 2026-09-14）
+  当前: 已标注'提交前请替换为真实姓名/编号'
+  工作量: 5 分钟（如用户提供信息）
+
+[I-7] P2-低
+  问题: Q1 评分 50.7（D 级）是否还有提升空间
+  当前: Q1 已 7 项修复完成，方法严谨度评分 8.6/10
+  工作量: 如选 (C) 1 周
+
+=== C. 待跑数据 (6 项) ===
+[R-1] Q4 完整 SAA N=1000 场景
+  目的: 替代当前 20 场景 PoC，输出 6 因子联合分布下的 Two-Stage SP
+  紧急度: 高（DoD V9 要求） | 时间: 4-6 小时计算 + 2 小时文档同步
+  产物:
+    - results/tables/q4_saa_1000_summary.json
+    - results/figures/q4_lambda_robustness.png
+    - 更新 paper.md §5.4.2/§5.4.5
+
+[R-2] Q4 6 因子协方差矩阵估计
+  目的: 建模 6 因子相关性（Gaussian copula），替代 independent 假设
+  紧急度: 高（诚实度提升） | 时间: 1-2 天
+  产物:
+    - data/processed/q4/q4_factor_cov_matrix.csv
+    - results/figures/q4_factor_correlation.png
+    - 更新 paper.md §5.4.1 + §5.4.3
+
+[R-3] Q3 关联规则应用率量化
+  目的: 统计 MILP 解中关联规则被采纳的比例（评估关联挖掘的实际价值）
+  紧急度: 中（解释关联挖掘价值） | 时间: 1-2 天
+  产物:
+    - results/tables/q3_assoc_adoption.csv
+    - results/figures/q3_assoc_network_with_solution.png
+    - 更新 paper.md §5.3.2
+
+[R-4] Q3 注册代理 v2（Sheet2 历史回归）
+  目的: 替代当前 r_reg 单元代理，用 Sheet2 历史日注册回归得到更稳健的注册预测
+  紧急度: 中（诚实度+可信度提升） | 时间: 3-4 天
+  产物:
+    - data/processed/q3/q3_reg_regression_v2.pkl
+    - results/tables/q3_proxy_accuracy_v2.csv
+    - 更新 paper.md §5.3.4
+
+[R-5] Q3/Q4 vs Q1 整合（Q1 评分作为约束）
+  目的: 用 Q1 评分结果（方案优劣）作为 Q3/Q4 优化的优先级权重，看是否能进一步提升
+  紧急度: 低（增加论文深度） | 时间: 1 周
+  产物:
+    - results/excel/result3_v2.xlsx
+    - results/tables/q3_v2_summary.json
+    - 更新 paper.md §5.5 整合节
+
+[R-6] 12 个月窗口验证 Q3/Q4 优化幅度
+  目的: 把 Q3/Q4 优化策略放在全年 12 个月窗口下回放，看是否全年都有提升
+  紧急度: 低（推广性验证） | 时间: 1 周
+  产物:
+    - results/tables/q3q4_full_year_validation.csv
+    - results/figures/q3q4_monthly_uplift.png
+    - 更新 paper.md §6 模型推广

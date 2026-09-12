@@ -1,0 +1,42 @@
+{
+  "method": "代理比值扰动（r_click/r_browse，删 r_reg） + 目标函数权重 3 档",
+  "n_ratio_scenarios": 10,
+  "n_weight_scenarios": 3,
+  "ratio_metrics": [
+    "r_click",
+    "r_browse"
+  ],
+  "ratio_pcts": [
+    -0.3,
+    -0.15,
+    0.0,
+    0.15,
+    0.3
+  ],
+  "weight_scenarios": [
+    "W=(1.0,0.0)",
+    "W=(0.7,0.3)",
+    "W=(0.3,0.7)"
+  ],
+  "improvement_vs_v1": "删 r_reg 扰动（代理失效无意义）+ 引入 click/browse 权重敏感性",
+  "weight_scenarios_summary": {
+    "W=(1.0,0.0)": {
+      "total_cost": 51164.93,
+      "total_clicks": 54200.0,
+      "total_browses": 158807.0,
+      "total_regs": 37121.0
+    },
+    "W=(0.7,0.3)": {
+      "total_cost": 51164.93,
+      "total_clicks": 54200.0,
+      "total_browses": 158807.0,
+      "total_regs": 37121.0
+    },
+    "W=(0.3,0.7)": {
+      "total_cost": 51164.93,
+      "total_clicks": 54200.0,
+      "total_browses": 158807.0,
+      "total_regs": 37121.0
+    }
+  }
+}

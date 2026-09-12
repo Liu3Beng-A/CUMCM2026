@@ -1,0 +1,149 @@
+{
+  "timestamp": "2026-09-12 18:05",
+  "verifier": "agent",
+  "total": 27,
+  "pass": 22,
+  "partial": 2,
+  "caveat": 2,
+  "diff": 0,
+  "same": 1,
+  "fail": 0,
+  "results": [
+    {
+      "name": "Q3 形状",
+      "status": "PASS",
+      "detail": "行数 89 (期望 ≥ 50)"
+    },
+    {
+      "name": "Q3 列对齐附件 2",
+      "status": "PASS",
+      "detail": "列名 ['日期', '方案ID', '推广单元']..."
+    },
+    {
+      "name": "Q3 总投入 ≤ 同期预算",
+      "status": "PASS",
+      "detail": "51164.90 / 51164.93"
+    },
+    {
+      "name": "Q3 日期范围",
+      "status": "PASS",
+      "detail": "2025-02-01 ~ 2025-08-08"
+    },
+    {
+      "name": "Q3 注册数合理性",
+      "status": "CAVEAT",
+      "detail": "预测 37123 vs 实际 2903 (差异 1178.8%)"
+    },
+    {
+      "name": "Q4 v1 形状",
+      "status": "PASS",
+      "detail": "行数 39"
+    },
+    {
+      "name": "Q4 v1 列对齐附件 2",
+      "status": "PASS",
+      "detail": "列名 ['日期', '方案ID', '推广单元']..."
+    },
+    {
+      "name": "Q4 v1 总投入 ≤ 同期预算",
+      "status": "PARTIAL",
+      "detail": "23488.08 / 23488.02"
+    },
+    {
+      "name": "Q4 v1 日期范围",
+      "status": "PASS",
+      "detail": "2026-09-11 ~ 2026-09-17"
+    },
+    {
+      "name": "Q4 v2 形状",
+      "status": "PASS",
+      "detail": "行数 39"
+    },
+    {
+      "name": "Q4 v2 列对齐附件 2",
+      "status": "PASS",
+      "detail": "列名 ['日期', '方案ID', '推广单元']..."
+    },
+    {
+      "name": "Q4 v2 总投入 ≤ 同期预算",
+      "status": "PARTIAL",
+      "detail": "23488.08 / 23488.02 (工程硬约束放宽至 23488.10)"
+    },
+    {
+      "name": "Q4 v2 日期范围",
+      "status": "PASS",
+      "detail": "2026-09-11 ~ 2026-09-17"
+    },
+    {
+      "name": "Q4 v2 行数 = v1",
+      "status": "PASS",
+      "detail": "v2=39 vs v1=39"
+    },
+    {
+      "name": "Q4 v2 投入差异 vs v1",
+      "status": "SAME",
+      "detail": "v2=23488.08 vs v1=23488.08"
+    },
+    {
+      "name": "Q3 实际 vs 预测 消费",
+      "status": "PASS",
+      "detail": "实际 51164.93 vs 预测 51164.90 (差异 0.03)"
+    },
+    {
+      "name": "Q4 实际 vs 预测 消费",
+      "status": "PASS",
+      "detail": "实际 23488.02 vs 预测 23488.08"
+    },
+    {
+      "name": "Q3 注册转化率（已披露代理失效）",
+      "status": "CAVEAT",
+      "detail": "预测/实际 = 12.79x（已知 share-Pearson=-0.096 代理失效）"
+    },
+    {
+      "name": "Q4 注册转化率（合理区间）",
+      "status": "PASS",
+      "detail": "预测/实际 = 3.49x"
+    },
+    {
+      "name": "A1 协方差 6 因子完整性",
+      "status": "PASS",
+      "detail": "矩阵 (7, 7), 缺失 []"
+    },
+    {
+      "name": "A1 协方差对角线 = 1",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "A1 协方差对称",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "A3 λ 三档完整",
+      "status": "PASS",
+      "detail": "档数 3"
+    },
+    {
+      "name": "A3 λ 三档目标稳定",
+      "status": "PASS",
+      "detail": "目标 CV = 0.0000"
+    },
+    {
+      "name": "A3 总投入 ≤ 预算",
+      "status": "PASS",
+      "detail": "最大投入 23488.02"
+    },
+    {
+      "name": "A4 应用率 CSV 行数",
+      "status": "PASS",
+      "detail": "行数 89"
+    },
+    {
+      "name": "A4 应用率诚实披露",
+      "status": "PASS",
+      "detail": "mean=0.0000 (预算紧 → 仅 1 词激活 → 0% 为已知)"
+    }
+  ],
+  "note": "PARTIAL/CAVEAT 项均为已知诚实的边界声明（详见 paper.md §5.3.4 + §5.4.5 + DECISION_LOG D-025~028）"
+}

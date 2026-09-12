@@ -1,0 +1,112 @@
+{
+  "method": "Spearman 相关（log-normal 空间）+ Gaussian copula",
+  "history_window": "2025-08-18 ~ 2025-09-16 (30 天)",
+  "sample_size_date_unit_pairs": 330,
+  "factors": [
+    "cpc",
+    "impressions",
+    "top_imp_pos_inv",
+    "top_imp",
+    "clicks",
+    "browses",
+    "regs"
+  ],
+  "correlation_matrix": {
+    "cpc": {
+      "cpc": 1.0,
+      "impressions": -0.03665470701932606,
+      "top_imp_pos_inv": -0.005483190446951479,
+      "top_imp": 0.033298291734156014,
+      "clicks": 0.3021629098849433,
+      "browses": 0.3021629098849433,
+      "regs": 0.19429124624272964
+    },
+    "impressions": {
+      "cpc": -0.03665470701932606,
+      "impressions": 1.0,
+      "top_imp_pos_inv": -0.48667326170410724,
+      "top_imp": 0.8101526464902395,
+      "clicks": 0.7674794361399733,
+      "browses": 0.7674794361399733,
+      "regs": 0.65375493139664
+    },
+    "top_imp_pos_inv": {
+      "cpc": -0.005483190446951479,
+      "impressions": -0.48667326170410724,
+      "top_imp_pos_inv": 1.0,
+      "top_imp": -0.6695291912715557,
+      "clicks": -0.5117126388294321,
+      "browses": -0.5117126388294321,
+      "regs": -0.432102454573837
+    },
+    "top_imp": {
+      "cpc": 0.033298291734156014,
+      "impressions": 0.8101526464902395,
+      "top_imp_pos_inv": -0.6695291912715557,
+      "top_imp": 1.0,
+      "clicks": 0.7784696193840395,
+      "browses": 0.7784696193840395,
+      "regs": 0.6755072835951176
+    },
+    "clicks": {
+      "cpc": 0.3021629098849433,
+      "impressions": 0.7674794361399733,
+      "top_imp_pos_inv": -0.5117126388294321,
+      "top_imp": 0.7784696193840395,
+      "clicks": 1.0,
+      "browses": 1.0,
+      "regs": 0.871914971938088
+    },
+    "browses": {
+      "cpc": 0.3021629098849433,
+      "impressions": 0.7674794361399733,
+      "top_imp_pos_inv": -0.5117126388294321,
+      "top_imp": 0.7784696193840395,
+      "clicks": 1.0,
+      "browses": 1.0,
+      "regs": 0.871914971938088
+    },
+    "regs": {
+      "cpc": 0.19429124624272964,
+      "impressions": 0.65375493139664,
+      "top_imp_pos_inv": -0.432102454573837,
+      "top_imp": 0.6755072835951176,
+      "clicks": 0.871914971938088,
+      "browses": 0.871914971938088,
+      "regs": 1.0
+    }
+  },
+  "log_normal_params": {
+    "cpc": {
+      "mu_log": -0.4293738030537138,
+      "sigma_log": 1.4453124164663576
+    },
+    "impressions": {
+      "mu_log": -0.4376340252943951,
+      "sigma_log": 1.0910671348204215
+    },
+    "top_imp_pos_inv": {
+      "mu_log": -0.8146500117880319,
+      "sigma_log": 1.729638924715798
+    },
+    "top_imp": {
+      "mu_log": -0.6084944255569805,
+      "sigma_log": 1.4361043537359268
+    },
+    "clicks": {
+      "mu_log": -0.7705852592831147,
+      "sigma_log": 1.6761591885969391
+    },
+    "browses": {
+      "mu_log": -0.7705852592831148,
+      "sigma_log": 1.6761591885969391
+    },
+    "regs": {
+      "mu_log": -0.7376446457765544,
+      "sigma_log": 1.6137130845443401
+    }
+  },
+  "correlation_model": "Gaussian copula (estimated from history)",
+  "improvement_vs_poC": "从 independent → 估计相关，提升 Two-Stage SP 的联合分布真实性",
+  "register_proxy_note": "regs 按单元点击占比从全市场 Sheet2 分摊（仅适用于无单元级注册数据）"
+}

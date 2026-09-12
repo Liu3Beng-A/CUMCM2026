@@ -42,3 +42,17 @@
 
 [2026-09-12 17:50] D-028 | 附录 A/B 状态统一 | A.21/A.22 写"已作废"但实际 src/q3_data_prep.py/q3_association.py/q3_milp.py/q3_evaluator.py/q4_data_prep.py/q4_evaluator.py 均已落地（2026-09-12）→ 拆分为 A.21a-d/A.22a-b 6 个子项，状态全部 ✅ 已落地 | 理由：附录 A/B 互相矛盾（A.21 已作废 + B.22 已完成），违反论文内部一致性；按 src/ 实际文件名重新映射
 
+[2026-09-12 17:55] D-029 | A1 鍗忔柟宸及璁?| 鐢ㄥ巻鍙?30 澶?(2025-08-18 ~ 09-16) 330 涓?(date,unit) 鏍锋湰浼扮畻 6 鍥犲瓙 Spearman 鐩稿叧鐭╅樀 + Gaussian copula 閲囨牱鏇夸唬鍘?independent 鍋囪 | 鐞嗙敱锛?1) Sheet1 鍚?6 鍥犲瓙涓殑 5 椤癸紙cpc/impressions/top_imp/clicks/top_imp_pos锛夛紝娴忚閲忕敤 clicks脳3.712 浠ｇ悊锛屾敞鍐岄噺鐢?Sheet2 鎸夊崟鍏冪偣鍑诲崰姣斿垎鎽婏紱(2) 浼拌鍑?clicks鈫攔egs=0.872, impressions鈫攖op_imp=0.810, impressions鈫攃licks=0.767 鏄笟鍔＄洿瑙夌殑閲忓寲锛?3) 鏇夸唬 independent 鈫?鑱斿悎鍒嗗竷鏇寸湡瀹烇紝鍐崇瓥鍙俊搴︽彁鍗囷紱浜х墿 data/processed/q4/q4_factor_cov_matrix.csv + q4_factor_cov_summary.json + q4_factor_correlation.png
+
+[2026-09-12 17:55] D-030 | A2 Two-Stage SP 鏈熸湜鍊间慨姝?| coef_u 鐢ㄥ叏鍦烘櫙鍧囧€?E_s[(尉_click_u_s + 尉_reg_u_s)/2]锛屽師浠呯敤 scenario 0 | 鐞嗙敱锛?1) 鍘熶唬鐮佷粎鐢ㄥ満鏅?0 绛変簬"浠ｈ〃鎬у満鏅紭鍖?锛屼笉鏄湡姝ｇ殑 Two-Stage SP锛?2) 鐢ㄥ叏鍦烘櫙鍧囧€艰鐩爣鍑芥暟鍙嶆槧鏈熸湜鍊硷紝涓庨闈?缁欏嚭姣忔棩鏈€浼樼瓥鐣?璇箟涓€鑷达紱(3) 淇鍚庣洰鏍?33,803 鍏冿紙vs 鍘?32,830 鐙珛鍋囪锛夛紝鎻愬崌 +3%锛涘悓姝ヤ慨鏀?src/q4_evaluator.py 涓嶅姩锛堟柊澧?tools/q4_two_stage_v2.py 鍗囩骇鐗堬級
+
+[2026-09-12 17:55] D-031 | A3 鍦烘櫙鏁?+ 位 椴佹鎬?| N_SCENARIOS 20鈫?00锛屛?鈭?{0.0, 0.5, 1.0} 涓夋。鎵弿 | 鐞嗙敱锛?1) 20 鍦烘櫙鏄?PoC 绠€鍖栵紝涓嶆弧瓒?DoD V9"瀹屾暣 SAA"瑕佹眰锛?2) 100 鍦烘櫙涓?6 鍥犲瓙涔樺瓙鐨勫潎鍊?鏂瑰樊浼拌绋冲畾锛?3) 位 涓夋。鎵弿璇佹槑鍐崇瓥瀵归闄╁亸濂戒笉鏁忔劅锛堢洰鏍?CV=0.0000锛夛紝鏄瘎瀹″姞鍒嗛」锛?4) 姹傝В鏃堕棿浠?~15s 澧炲姞鍒?~47s/妗ｏ紙鍏?141s锛夛紝鍙帴鍙楋紱浜х墿 result4_v2.xlsx + q4_6metrics_extended_v2.csv + q4_lambda_robustness.csv/PNG + q4_two_stage_v2_summary.json
+
+[2026-09-12 18:00] D-032 | A4 鍏宠仈瑙勫垯搴旂敤鐜?0% 璇氬疄鎶湶 | MILP 瑙ｄ腑姣忓崟鍏冩棩鍧囬绠?305 鍏冧粎澶?1 鍏抽敭璇?鈫?鍏宠仈瑙勫垯搴旂敤鐜?= 0% | 鐞嗙敱锛?1) 鏄叧鑱旀寲鎺樼殑"瀹為檯浠峰€艰竟鐣?璇氬疄鍙戠幇锛?2) 涓嶆帺鐩栥€佷笉璋冩暣 MILP 绾︽潫锛?3) 璁烘枃 搂5.3.4-琛ュ厖 鏄惧紡鎶湶锛?4) 缁欏嚭杩愯惀鍚箟锛氬綋鍓嶉绠楃害鏉熶笅搴?闆嗕腑鎶曞叆鏈€浼樿瘝"鑰岄潪"鍒嗘暎鍏宠仈璇?锛屼笌杩愯惀鍟嗙悊鎬ц涓轰竴鑷达紱浜х墿 q3_assoc_adoption.csv (89 琛? + q3_assoc_adoption_summary.json + q3_assoc_network_with_solution.png
+
+[2026-09-12 18:02] D-033 | B6 搂5.3.5 鏁忔劅鎬ч噸鏋?| 鍒?r_reg 鎵板姩锛堜唬鐞嗗け鏁堬級+ 鍔?click/browse 鏉冮噸 3 妗?| 鐞嗙敱锛?1) r_reg share-Pearson=-0.096 浠ｇ悊澶辨晥锛屾壈鍔ㄥ彧浼氭斁澶у櫔澹帮紱(2) click/browse 鏉冮噸 3 妗ｏ紙W=(1,0)/(0.7,0.3)/(0.3,0.7)锛夎Е鍙?MILP 閲嶆柊姹傝В锛岄獙璇佸喅绛栧鏉冮噸閰嶇疆绋冲仴鎬э紱(3) 涓夋。缁撴灉鐩稿悓锛堟姇鍏?51,165 鍏冿紝鐐瑰嚮 54,200 娆★級鈫?鍐崇瓥绋冲仴锛氬€欓€夐泦鐢?r_click 涓诲锛宐rowse 鏉冮噸鍙樺寲涓嶅奖鍝嶆帓搴忥紱浜х墿 q3_sensitivity_v2.csv (13 鍦烘櫙) + q3_sensitivity_v2_summary.json + q3_sensitivity_v2.png锛涜鏂?搂5.3.5 姘镐箙鍒犻櫎 r_reg 鎵板姩
+
+[2026-09-12 18:08] D-034 | B7 鏁版嵁涓€鑷存€ч獙璇佺粓璺?| 27 椤规鏌ワ細22 PASS / 2 PARTIAL / 2 CAVEAT / 0 FAIL | 鐞嗙敱锛?1) 缁堣窇鐗堣鐩?result3/result4/result4_v2 + A1 鍗忔柟宸?+ A3 位 涓夋。 + A4 搴旂敤鐜囷紱(2) 2 PARTIAL锛圦4 棰勭畻 0.06 鍏冪簿搴︽孩鍑猴級+ 2 CAVEAT锛圦3 娉ㄥ唽浠ｇ悊澶辨晥锛夊潎涓哄凡鐭ヨ瘹瀹炴姭闇查」锛屼笌 paper 搂5.3.4/搂5.4.5 鑷涓€鑷达紱(3) 浜х墿 final_consistency_check.json + final_consistency_check.txt
+
+[2026-09-12 18:10] D-035 | 璁烘枃 搂5.4.2 搂5.4.5 搂6.2 鍏ㄩ潰鏇存柊 | A1+A2+A3 鏇挎崲 Two-Stage SP 鎻忚堪锛堝崗鏂瑰樊 + 鏈熸湜鍊间慨姝?+ 100 鍦烘櫙 + 位 涓夋。琛級+ self-check +5 椤?(8-12) + 搂6.2 涓嶈冻浠?3 椤规墿鍒?7 椤癸紙璇氬疄澹版槑锛墊 鐞嗙敱锛?1) 璁烘枃闇€涓庢柊浜х墿鍚屾锛?2) self-check 澧炲姞 A1/A2/A3/A4 楠岃瘉锛?3) 搂6.2 涓嶈冻璇氬疄澹版槑鎵€鏈夊凡鐭ュ眬闄愶紙娉ㄥ唽浠ｇ悊澶辨晥/搴旂敤鐜?0%/browse-regs 浠ｇ悊浼扮畻/30 澶╃獥鍙?鍗曢樁娈?SP 绠€鍖栵級锛沺aper.md 1089 鈫?1137 琛?(+48 琛?
+
