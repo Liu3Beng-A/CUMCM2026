@@ -13,24 +13,24 @@
   "lambda_results": [
     {
       "lambda": 0.0,
-      "objective": 32863.95683833131,
+      "objective": 32505.649976111956,
       "total_cost": 23487.919940000007,
       "n_active": 39,
-      "solve_time_s": 15.2
+      "solve_time_s": 3.1
     },
     {
       "lambda": 0.5,
-      "objective": 32863.95683833131,
+      "objective": 32505.649976111956,
       "total_cost": 23487.919940000007,
       "n_active": 39,
-      "solve_time_s": 14.8
+      "solve_time_s": 3.0
     },
     {
       "lambda": 1.0,
-      "objective": 32863.95683833131,
+      "objective": 32505.649976111956,
       "total_cost": 23487.919940000007,
       "n_active": 39,
-      "solve_time_s": 14.7
+      "solve_time_s": 3.1
     }
   ],
   "main_solution": {

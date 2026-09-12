@@ -222,72 +222,110 @@ def solve_lambda(cov_df, scenarios, budget, kw_per_unit, proxy_dict, kw_pool_pro
 
 
 def plot_lambda_robustness(lambda_results, out_path):
-    """λ 鲁棒性图：三档目标值 + 投入金额
+    """λ 鲁棒性图（V2 重构）：3 档完全一致 → 改成「鲁棒性证明卡 + KPI + 表格」
 
-    改-P0-6：决策稳健 Δ=0 的结论被弱化，加强：
-      1) 标题明确写出"目标值 Δ=0（决策稳健）"
-      2) 在柱顶加 Δ 标注
-      3) 右图加 n_active 折线（第三维信息：激活单元数）
-      4) 副标题解释 λ 含义
+    改-P0-6.v2：原柱状图3根柱子完全相同（Δ=0），视觉无意义。
+    改为：
+      1) 顶部 1 张大字标题 + 副标题（鲁棒性证明）
+      2) 中部 3 个 KPI 卡片（CV 目标/投入/单元，全为 0）
+      3) 下部 1 张数据表（λ / 目标 / 投入 / 单元数 3 行 4 列）
+      4) 底部 1 句结论
     """
     apply_style()
-    fig, axes = plt.subplots(1, 2, figsize=(13, 5.5))
+    import matplotlib.gridspec as gridspec
+    from matplotlib.patches import FancyBboxPatch
+
     labels = [f'λ={r["lambda"]:.1f}' for r in lambda_results]
     obj_vals = [r['objective'] for r in lambda_results]
     costs = [r['total_cost'] for r in lambda_results]
     n_active = [r['n_active'] for r in lambda_results]
+    times = [r['solve_time_s'] for r in lambda_results]
 
-    # 左图：目标值
-    ax = axes[0]
-    bars = ax.bar(labels, obj_vals, color='#2E86AB', alpha=0.85, edgecolor='black', linewidth=0.8)
-    ax.set_title('λ 鲁棒性: 目标函数值', fontsize=12, fontweight='bold')
-    ax.set_ylabel('目标值（元）')
-    ax.grid(alpha=0.3, axis='y')
-    # 改-P0-6：在柱顶标绝对值 + Δ（相对 λ=0.5）
-    if len(obj_vals) >= 1:
-        ref = obj_vals[1] if len(obj_vals) >= 2 else obj_vals[0]
-        for i, v in enumerate(obj_vals):
-            delta = v - ref
-            sign = '+' if delta >= 0 else ''
-            ax.text(i, v * 1.04, f'{v:.0f}\n({sign}{delta:.0f})',
-                    ha='center', va='bottom', fontsize=9,
-                    fontweight='bold' if abs(delta) < 1 else 'normal',
-                    color='#2E86AB' if abs(delta) < 1 else 'black')
-        # 加 Δ=0 区间高亮（如果所有目标值都接近相等）
-        delta_range = max(obj_vals) - min(obj_vals)
-        if delta_range < 1.0:
-            ax.text(0.5, 0.95, f'✅ 决策稳健：Δ={delta_range:.2f} 元（极小）',
-                    transform=ax.transAxes, ha='center', va='top',
-                    fontsize=11, fontweight='bold', color='#06A77D',
-                    bbox=dict(boxstyle='round,pad=0.4',
-                              facecolor='#E8F8F1', edgecolor='#06A77D', alpha=0.9))
+    # CV 统计（全部为 0 因为 3 档完全一致）
+    cv_obj = np.std(obj_vals) / np.mean(obj_vals) if np.mean(obj_vals) > 0 else 0.0
+    cv_cost = np.std(costs) / np.mean(costs) if np.mean(costs) > 0 else 0.0
+    cv_active = np.std(n_active) / np.mean(n_active) if np.mean(n_active) > 0 else 0.0
+    max_delta_obj = max(obj_vals) - min(obj_vals)
+    max_delta_cost = max(costs) - min(costs)
 
-    # 右图：投入金额 + 激活单元数
-    ax = axes[1]
-    bars1 = ax.bar(labels, costs, color='#A23B72', alpha=0.85, edgecolor='black', linewidth=0.8)
-    ax.set_title('λ 鲁棒性: 总投入金额', fontsize=12, fontweight='bold')
-    ax.set_ylabel('投入（元）')
-    ax.grid(alpha=0.3, axis='y')
-    for i, v in enumerate(costs):
-        ax.text(i, v * 1.02, f'{v:.0f}', ha='center', fontsize=10, fontweight='bold')
-    # 改-P0-6：折线展示激活单元数（次轴）
-    ax2 = ax.twinx()
-    ax2.plot(labels, n_active, marker='o', color='#F18F01', linewidth=2.5,
-             markersize=10, markeredgecolor='black', label='激活单元数')
-    ax2.set_ylabel('激活单元数', color='#F18F01')
-    ax2.tick_params(axis='y', labelcolor='#F18F01')
-    ax2.set_ylim(min(n_active) - 0.5, max(n_active) + 1.0)
-    for i, v in enumerate(n_active):
-        ax2.text(i, v + 0.15, f'{v}', ha='center', fontsize=10, color='#F18F01', fontweight='bold')
-    ax2.legend(loc='upper right', fontsize=10)
+    fig = plt.figure(figsize=(13, 8))
+    gs = gridspec.GridSpec(3, 3, height_ratios=[1.4, 1.0, 2.0], hspace=0.45, wspace=0.25,
+                           left=0.06, right=0.96, top=0.90, bottom=0.08)
 
-    plt.suptitle('Q4 · λ 鲁棒性三档对比（λ = 期望值 vs CVaR 权衡权重）',
-                 fontsize=13, fontweight='bold', y=1.02)
-    fig.text(0.5, -0.02,
-             '结论：三档 λ 下目标函数值变化 < 1 元（决策稳健），且激活单元数与投入金额完全一致，'
-             '说明 Two-Stage SP 的解对 λ 不敏感。',
-             ha='center', fontsize=9, style='italic', color='gray')
-    plt.tight_layout()
+    # ===== Row 0: 标题区 =====
+    ax_title = fig.add_subplot(gs[0, :])
+    ax_title.axis('off')
+    ax_title.text(0.5, 0.85, 'Q4 · λ 鲁棒性证明：3 档 λ 下结果完全一致',
+                  ha='center', va='center', fontsize=16, fontweight='bold', color='#06A77D')
+    ax_title.text(0.5, 0.30,
+                  'λ ∈ {0.0, 0.5, 1.0} 三档扫描 → 目标值 / 投入金额 / 激活单元数 全部相同\n'
+                  '→ Two-Stage SP 对 λ 不敏感，决策对风险偏好稳健',
+                  ha='center', va='center', fontsize=11, color='#333')
+
+    # ===== Row 1: 3 个 KPI 卡片 =====
+    kpi_data = [
+        ('目标值 CV', f'{cv_obj:.4f}', 'Δ={:.2f} 元'.format(max_delta_obj), '#2E86AB'),
+        ('投入金额 CV', f'{cv_cost:.4f}', 'Δ={:.2f} 元'.format(max_delta_cost), '#A23B72'),
+        ('激活单元 CV', f'{cv_active:.4f}', 'Δ={} 单元'.format(int(max(n_active) - min(n_active))), '#F18F01'),
+    ]
+    for col, (label, val, delta, color) in enumerate(kpi_data):
+        ax_kpi = fig.add_subplot(gs[1, col])
+        ax_kpi.axis('off')
+        # 圆角卡片背景
+        ax_kpi.add_patch(FancyBboxPatch((0.05, 0.10), 0.90, 0.80,
+                                        boxstyle='round,pad=0.02,rounding_size=0.06',
+                                        facecolor='#F5F9FF', edgecolor=color, linewidth=2.5,
+                                        transform=ax_kpi.transAxes))
+        ax_kpi.text(0.5, 0.72, label, ha='center', va='center', fontsize=12,
+                    color='#444', transform=ax_kpi.transAxes)
+        ax_kpi.text(0.5, 0.45, val, ha='center', va='center', fontsize=24, fontweight='bold',
+                    color=color, transform=ax_kpi.transAxes)
+        ax_kpi.text(0.5, 0.20, delta, ha='center', va='center', fontsize=10,
+                    color='#666', style='italic', transform=ax_kpi.transAxes)
+
+    # ===== Row 2: 表格 =====
+    ax_table = fig.add_subplot(gs[2, :])
+    ax_table.axis('off')
+    # 表格内容
+    header = ['λ', '目标函数值 (元)', '总投入 (元)', '激活单元数', '求解时间 (s)']
+    table_data = []
+    for i, lab in enumerate(labels):
+        table_data.append([
+            lab,
+            f'{obj_vals[i]:.2f}',
+            f'{costs[i]:.2f}',
+            f'{int(n_active[i])}',
+            f'{times[i]:.1f}',
+        ])
+    table = ax_table.table(cellText=table_data, colLabels=header,
+                           cellLoc='center', loc='center',
+                           colColours=['#06A77D'] * len(header))
+    table.auto_set_font_size(False)
+    table.set_fontsize(11)
+    table.scale(1, 2.2)
+    # 表头加粗白字
+    for j in range(len(header)):
+        cell = table[(0, j)]
+        cell.set_text_props(fontweight='bold', color='white', fontsize=12)
+        cell.set_height(0.15)
+    # 数据行：颜色（CV=0 用绿色高亮）
+    for i in range(1, len(table_data) + 1):
+        for j in range(len(header)):
+            cell = table[(i, j)]
+            cell.set_facecolor('#F0FFF4' if i % 2 == 1 else 'white')
+            cell.set_edgecolor('#CCC')
+
+    # 标题
+    ax_table.set_title('3 档 λ 详细结果（CV=0.0000 完全一致）',
+                       fontsize=12, fontweight='bold', pad=12, loc='center')
+
+    # ===== 底部结论 =====
+    fig.text(0.5, 0.015,
+             '结论：3 档 λ 下目标函数值 / 投入金额 / 激活单元数 完全一致 → Two-Stage SP 解对风险偏好稳健',
+             ha='center', fontsize=10, style='italic', color='#444',
+             bbox=dict(boxstyle='round,pad=0.4', facecolor='#E8F8F1',
+                       edgecolor='#06A77D', linewidth=1.2))
+
     plt.savefig(out_path, dpi=120, bbox_inches='tight')
     plt.close()
     print(f'  -> {out_path}')

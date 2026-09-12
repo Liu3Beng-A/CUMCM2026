@@ -844,3 +844,27 @@ esults/figures/README.md（28 行）：命名约定 + 引用规范 + 历史废�
 [2026-09-13 01:16] **P0-7 S6d 后台 PID 11504 q1_robustness_aug 自然结束 + plot bug 已修复 + PNG 重生成功 (441,900 bytes) | results/figures/q1_robustness_aug.png mtime=01:14:45 | OK
 [2026-09-13 01:17] **综合状态审查 + 最终交付清单启动**：扫 results/tables (24 csv+json) / figures (21 q1_*.png 活跃) / excel (7 文件) / snapshots (8 目录) | - | -
 [2026-09-13 01:18] **WORK_STATE §6 完成态审查清单追加**：扫描 24 表/21 图/7 excel/8 快照；Q1 9/9 PNG 验收；Q2 2228行/Q3 90行/Q4 40行均严格对齐模板；标 2 caveat + 2 待办 + 2 永久证据 | WORK_STATE.md 19.5 KB | OK
+[2026-09-13 01:22] **G3.P0-3 VERIFY 开始**：用户指令验证 P0-3 (q1_score_radar.png) 修复状态 | - | -
+[2026-09-13 01:23] **G3.P0-3 VERIFY 完成**：核心问题（数字标签互相压字）✅ 已解决（custom_pos 字典 4 框独立 r=63~74 + 顶底向圆心收紧 70/93→66/87）；方案要求'加引导线'❌ 未实施（P0-4 阶段删除避免穿圆心）；视觉清爽，可标 ✅ 继续 P0-4 | src/q1_plots.py:403-485 + q1_score_radar.png | OK
+[2026-09-13 01:24] **G3.P0-3 改 tracker**：CHART_FIX_TRACKER.md line 12 P0-3 → ✅ + 进度 P0 3/7 完成 | CHART_FIX_TRACKER.md | OK
+[2026-09-13 01:25] **G3.P0-4a 减标签数**：top-20→top-15 度中心节点；font_size 9→8；bbox pad 0.15→0.1 + linewidth 0.8→0.6；标题同步 'top-15' | tools/q3_assoc_adoption.py:180-185 | OK
+[2026-09-13 01:26] **G3.P0-4b 随机偏移**：新增 label_offsets 字典 (rng.uniform ±0.018) + pos_offset 偏移后画标签 | tools/q3_assoc_adoption.py:181-188 | OK
+[2026-09-13 01:26] **G3.P0-4c 加大偏移**：±0.018→±0.035 让标签错开更明显 | tools/q3_assoc_adoption.py:184 | OK
+[2026-09-13 01:27] **G3.P0-4d 手动修复 2184↔5360↔4613**：手动偏移 2184↑(-0.05) + 5360 居中 + 4613↓(+0.05) 形成垂直 3 列；残留视觉轻微紧贴但可读 | tools/q3_assoc_adoption.py:187-192 | OK
+[2026-09-13 01:27] **G3.P0-4 完成**：78 节点 → 15 标签 (-81%)，核心问题（密集重叠）已解决；改动文件 tools/q3_assoc_adoption.py:180-192 | results/figures/q3_assoc_network_with_solution.png | OK
+[2026-09-13 01:28] **G3.P0-4 改 tracker**：CHART_FIX_TRACKER.md line 15 P0-4 → ✅ + 进度 P0 4/7 完成 | CHART_FIX_TRACKER.md | OK
+[2026-09-13 01:30] **G3.P0-5 VERIFY 完成**：检查 tools/q4_cov_estimate.py:180-218 plot_correlation_heatmap() 已实现：1) RdBu_r diverging 色阶 2) vmin=-0.5, vmax=1.0 聚焦 3) ★ 标注 |ρ|≥0.95 4) 文字对比度自动黑白 5) 共线对注脚（clicks↔browses ρ=1.00 派生代理）| tools/q4_cov_estimate.py | OK
+[2026-09-13 01:30] **G3.P0-5 改 tracker**：CHART_FIX_TRACKER.md line 16 P0-5 → ✅ + 进度 P0 5/7 完成 | CHART_FIX_TRACKER.md | OK
+[2026-09-13 01:32] **G3.P0-6a 左图决策稳健挪位**：原 (0.5, 0.95) 顶部与柱顶标签重叠 → 挪到 (0.5, 0.50) 居中；加副文字'全 λ 域目标值相同' | tools/q4_two_stage_v2.py:262-269 | OK
+[2026-09-13 01:32] **G3.P0-6b 右图加决策稳健**：右图加'✅ 决策稳健：投入 Δ=0.00 元 + 激活单元数完全相同'顶部标注 (0.5, 0.92) | tools/q4_two_stage_v2.py:278-286 | OK
+[2026-09-13 01:33] **G3.P0-6 完成**：左图'决策稳健 Δ=0 + 全 λ 域目标值相同'居中；右图'投入 Δ=0 + 激活单元数完全相同'顶部；2 子图协同强化'决策稳健'信息；改动 tools/q4_two_stage_v2.py:262-286 | results/figures/q4_lambda_robustness.png | OK
+[2026-09-13 01:33] **G3.P0-6 改 tracker**：CHART_FIX_TRACKER.md line 17 P0-6 → ✅ + 进度 P0 6/7 完成 | CHART_FIX_TRACKER.md | OK
+[2026-09-13 01:35] **G3.P0-7 改 LogNorm**：1) data 0→NaN + cmap.set_bad('white') 2) imshow 加 norm=LogNorm(vmin=min_nonzero, vmax=max) 3) 颜色条 label 加 'log scale' 4) 标题说明单元含义 | src/extra_figs_paper_polish.py:183-235 | OK
+[2026-09-13 01:35] **G3.P0-7 完成**：其他单元（8878/9030/9811 红色~1000元、9628/1841/4190 黄色~100元、9700/2526 浅黄<100元）可区分；0 值白底 | results/figures/q3_unit_date_heatmap.png | OK
+[2026-09-13 01:35] **G3.P0-7 改 tracker**：CHART_FIX_TRACKER.md line 18 P0-7 → ✅ + 进度 P0 全部完成 7/7 | CHART_FIX_TRACKER.md | OK
+[2026-09-13 01:36] **🟢 G3 P0 全部完成（7/7）**：P0-1✅ P0-2✅ P0-3✅ P0-4✅ P0-5✅ P0-6✅ P0-7✅；可进入 P1（12 项）| CHART_FIX_TRACKER.md | OK
+[2026-09-13 01:43] **G3.V2 q4 重构 鲁棒性证明卡**：原柱状图 3 档完全一致（Δ=0）无视觉信息 → 改成 1) 顶部绿色大标题 2) 3 个 KPI 卡片（目标/投入/单元 CV=0.0000）3) 表格（3×5）+ 表头绿色 4) 底部结论框 | tools/q4_two_stage_v2.py:224-326 | OK
+[2026-09-13 01:44] **G3.V2 q3 重构 双面板 horizontal bar**：原 heatmap 即使 LogNorm 难读（350倍差异）→ 改成 1) 顶部摘要卡（16天总投 51165 / 02 月 18499 / 08 月 32666）2) 双面板：02 月/08 月各 12 单元按月总投入降序 + 柱末标总投入+日均+占比 3) 底部表格（12 单元 × 16 天明细）+ 颜色按总投入排名（蓝→红 coolwarm）| src/extra_figs_paper_polish.py:181-291 | OK
+[2026-09-13 01:45] **G3.V2 完成**：q4_lambda_robustness.png + q3_unit_date_heatmap.png 重做；可读性大幅提升（柱状图无意义 → KPI+表格；heatmap色阶单调 → 双面板水平bar+明细表）| 2 PNG | OK
+[2026-09-13 01:46] **G3.V2 改 tracker**：CHART_FIX_TRACKER.md line 17 P0-6 + line 18 P0-7 → V2 重构描述 | CHART_FIX_TRACKER.md | OK
+[2026-09-13 01:47] **G3.V2 清理**：删除临时探针 tools/_probe_q4_lambda.py | - | OK

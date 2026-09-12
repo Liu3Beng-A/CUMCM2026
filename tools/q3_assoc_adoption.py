@@ -177,16 +177,32 @@ def plot_network_with_solution(rules, plan, out_path, top_edges=50):
                            width=[max(d['weight'] * 2.0, 0.3) for _, _, d in G.edges(data=True)],
                            alpha=0.5, edge_color='gray', ax=ax)
 
-    # 改-P0-4：只标 top-20 节点（按 degree 排序），避免密集重叠
+    # 改-P0-4：只标 top-15 节点（按 degree 排序），避免密集重叠
+    # 再做小偏移：aw 给标签一点 (dx, dy) 让位置接近的标签错开
+    import random
+    rng = random.Random(42)
     degrees = dict(G.degree())
-    top_nodes_for_labels = sorted(degrees, key=degrees.get, reverse=True)[:20]
+    top_nodes_for_labels = sorted(degrees, key=degrees.get, reverse=True)[:15]
+    label_offsets = {n: (rng.uniform(-0.035, 0.035), rng.uniform(-0.035, 0.035))
+                     for n in top_nodes_for_labels}
+    # 重叠手动偏移：2184↔5360↔4613 距离过近，加大向上/向下偏移
+    manual_fixes = {
+        2184: (0.0, -0.05),   # 向上挪
+        5360: (0.0,  0.0),    # 居中
+        4613: (0.0,  0.05),   # 向下挪
+    }
+    for n, (dx, dy) in manual_fixes.items():
+        if n in label_offsets:
+            label_offsets[n] = (dx, dy)
     labels = {n: str(n) for n in top_nodes_for_labels}
-    nx.draw_networkx_labels(G, pos, labels=labels, font_size=9,
+    pos_offset = {n: (pos[n][0] + label_offsets[n][0], pos[n][1] + label_offsets[n][1])
+                  for n in top_nodes_for_labels}
+    nx.draw_networkx_labels(G, pos_offset, labels=labels, font_size=8,
                             font_weight='bold', ax=ax,
-                            bbox=dict(boxstyle='round,pad=0.15',
-                                      facecolor='white', edgecolor='black', alpha=0.85))
+                            bbox=dict(boxstyle='round,pad=0.1',
+                                      facecolor='white', edgecolor='black', alpha=0.9, linewidth=0.6))
 
-    ax.set_title(f'Q3 关联网络（MILP 激活词标红，{len(activated_nodes)} 激活 / {len(G.nodes())} 总节点；标签=top-20 度中心节点）',
+    ax.set_title(f'Q3 关联网络（MILP 激活词标红，{len(activated_nodes)} 激活 / {len(G.nodes())} 总节点；标签=top-15 度中心节点）',
                  fontsize=12, fontweight='bold')
     ax.axis('off')
     # 图例

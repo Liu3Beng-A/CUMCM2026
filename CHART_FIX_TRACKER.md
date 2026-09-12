@@ -12,11 +12,11 @@
 |------|---|------|------|---------|
 | ✅ | P0-1 | `q3_sensitivity.png` | 含 r_reg 扰动（旧版，F1 已替换 v2 但旧图保留）| 删除旧图 + `q3_evaluator.py` 改 out_path 为 `_v1_DEPRECATED` + 新建 `results/figures/README.md` |
 | ✅ | P0-2 | `q1_baseline_rank_scatter.png` | tracker 误判（实为 1×1 单图），黄色框与 TOPSIS marker 同色 + 方案 ID 压红线 | 备份 v1 为 DEPRECATED → 重写 `plot_rank_scatter` 为 2×2 子图 + 第 4 子图为 4×4 Spearman ρ 热力图（RdBu_r）|
-| ⬜ | P0-3 | `q1_score_radar.png` | 数字标签互相压字 | 数字移到端点外侧 + 加引导线 |
-| ⬜ | P0-4 | `q3_assoc_network_with_solution.png` | 78 节点标签密集重叠 | 只标 top-20 激活词，其余隐藏 |
-| ⬜ | P0-5 | `q4_factor_correlation.png` | 相关系数 1.00 让色阶视觉单调 | 改用 diverging 色阶 (RdBu_r)，并把完全共线对 (clicks↔browses) 加 ★ 标注 |
-| ⬜ | P0-6 | `q4_lambda_robustness.png` | 3 档目标值完全相同（Δ=0）但未强化"决策稳健"信息 | 加标题"决策稳健 Δ=0 元" + 加"全 λ 域目标相同"文字标注 |
-| ⬜ | P0-7 | `q3_unit_date_heatmap.png` | 单元 9657930100 占绝对主导，其他单元 0 值难以区分 | 改用 LogNorm 色阶 |
+| ✅ | P0-3 | `q1_score_radar.png` | 数字标签互相压字 | custom_pos 字典 (r, shift) 4 框独立半径 + 顶底向圆心收紧；引导线删除（避免穿圆心）；核心问题已解决 |
+| ✅ | P0-4 | `q3_assoc_network_with_solution.png` | 78 节点标签密集重叠 | top-20→top-15 度中心节点 + 字号 9→8 + bbox 紧凑 + 随机偏移 ±0.035 + 2184↔5360↔4613 手动垂直错开 |
+| ✅ | P0-5 | `q4_factor_correlation.png` | 相关系数 1.00 让色阶视觉单调 | RdBu_r diverging 色阶 + vmin/vmax 聚焦 -0.5~1.0 + ★ 标注 |ρ|≥0.95（含 clicks↔browses 派生代理） + 文字对比度自动黑白 + 共线对注脚 |
+| ✅ | P0-6 | `q4_lambda_robustness.png` | 3 档目标值完全相同（Δ=0）但未强化"决策稳健"信息 | **V2 重构**：放弃柱状图（3 档完全相同无意义）→ 改成「鲁棒性证明卡 + 3 KPI（CV=0.0000）+ 3×5 表格 + 结论框」 |
+| ✅ | P0-7 | `q3_unit_date_heatmap.png` | 单元 9657930100 占绝对主导，其他单元 0 值难以区分 | **V2 重构**：放弃 heatmap（350 倍差异即使 LogNorm 也难读）→ 改成「顶部摘要 + 双面板 horizontal bar（02/08 月分别排序）+ 柱末标总投入+日均+占比 + 底部 12 单元 × 16 天明细表 + coolwarm 配色按总投入排名」 |
 
 ---
 
@@ -75,7 +75,7 @@
 
 ## 📊 进度统计
 
-- P0：0/7 完成
+- **P0 全部完成**：7/7 ✅
 - P1：0/12 完成
 - P2：0/16 完成
 - P3：0/3 完成
