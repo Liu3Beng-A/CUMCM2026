@@ -1,0 +1,4 @@
+﻿Baseline,Pearson,Spearman
+等权平均,0.9899,0.9
+熵权法,0.9898,0.7
+TOPSIS,0.9843,0.7

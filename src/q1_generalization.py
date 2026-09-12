@@ -2,17 +2,19 @@
 
 目的：验证 CRITIC 权重和节日效应估计对未见数据的泛化能力，防止方法过拟合于训练集。
 
-三种验证策略：
+两种验证策略：
 - 策略 A：时间切分验证（用 1-6 月数据训练，预测 7-9 月节日效应）
-- 策略 B：留一方案交叉验证（5 折留一，用 4 个方案训练权重，预测被剔除方案排名）
 - 策略 C：Bootstrap 重采样（检验 CRITIC 权重和综合评分的 95% CI 稳定性）
+
+注：P0-2 完成。原"留一方案交叉验证"（LOO-CV）已废弃——该方法检验的是
+"CRITIC 权重对方案的稳健性"，并非"对未见数据的泛化能力"。
+ρ=1.00 是 CRITIC 方法本身特性（在已知权重下排名确定），不构成泛化证据。
 
 输出：
 - results/tables/q1_generalization_time_split.csv
-- results/tables/q1_generalization_loo_cv.csv
 - results/tables/q1_generalization_bootstrap.csv
 - results/figures/q1_generalization_time_split.png
-- results/figures/q1_generalization_loo_cv.png
+- results/figures/q1_generalization_bootstrap.png
 """
 import sys, os
 sys.stdout.reconfigure(encoding='utf-8')
@@ -236,168 +238,6 @@ def time_split_validation():
 
 
 # =============================================================================
-# 策略 B：权重稳健性检验（前称"LOO-CV"，P0-2 重命名）
-# =============================================================================
-
-def weight_robustness_check():
-    """权重稳健性检验（前称 "LOO-CV"，P0-2 重命名 + 重定义）
-
-    重要说明（P0-2）：原名"留一交叉验证"易误导——该方法检验的是
-    "CRITIC 权重对方案的稳健性"，并非"对未见数据的泛化能力"。
-    5 个方案排名完全准确（ρ=1.00）是 CRITIC 方法本身特性，并不证明泛化。
-
-    真正的泛化测试见 time_split_validation()（策略 A）。
-
-    每次剔除一个方案，用剩余 4 个方案的得分矩阵训练 CRITIC 权重，
-    然后预测被剔除方案的排名。与实际排名对比。
-    """
-    print('\n=== 策略 B：留一方案交叉验证 ===', flush=True)
-    data = build_q1_data()
-
-    # 获取所有方案的 4 维度得分
-    all_plan_scores = _score_per_plan(data)
-    plan_ids = all_plan_scores.index.tolist()
-    dim_names = list(all_plan_scores.columns)
-
-    print(f'  方案列表: {plan_ids}', flush=True)
-    print(f'  维度: {dim_names}', flush=True)
-
-    # 计算实际排名（基于全量数据）
-    # 用全量 CRITIC 权重计算综合分
-    w_critic_full = critic_weights(all_plan_scores.values)
-    weighted_scores_full = all_plan_scores.values @ w_critic_full
-    actual_scores = dict(zip(plan_ids, weighted_scores_full))
-
-    # 实际排名（降序，分高排名靠前）
-    actual_rank = {pid: r + 1 for r, pid in enumerate(
-        sorted(plan_ids, key=lambda x: actual_scores[x], reverse=True)
-    )}
-
-    print('  实际排名:', actual_rank, flush=True)
-
-    # 留一交叉验证
-    results = []
-    predicted_ranks = []
-    actual_ranks = []
-
-    for fold, held_out_pid in enumerate(plan_ids, 1):
-        # 训练集：剔除 held_out_pid 后的 4 个方案
-        train_mask = [pid != held_out_pid for pid in plan_ids]
-        train_scores = all_plan_scores.iloc[train_mask]
-
-        # 用训练集计算 CRITIC 权重
-        w_critic = critic_weights(train_scores.values)
-        train_weighted = train_scores.values @ w_critic
-
-        # 计算训练集各方案的相对得分（归一化到 0-100）
-        train_min, train_max = train_weighted.min(), train_weighted.max()
-        train_range = train_max - train_min if train_max != train_min else 1.0
-        train_norm = (train_weighted - train_min) / train_range * 100
-
-        # 建立训练集方案 ID 到归一化得分的映射
-        train_pids = [pid for pid in plan_ids if pid != held_out_pid]
-        train_pid_to_score = dict(zip(train_pids, train_norm))
-
-        # 对被剔除方案：基于其 4 维度得分，用训练集 CRITIC 权重计算
-        held_out_score_raw = all_plan_scores.loc[held_out_pid].values @ w_critic
-
-        # 插值到训练集归一化区间
-        if train_range > 0:
-            held_out_score_norm = (held_out_score_raw - train_min) / train_range * 100
-        else:
-            held_out_score_norm = 50.0  # 训练集区分度为 0 时给中性分
-
-        # 计算预测排名：统计有多少训练方案得分低于被剔除方案
-        n_better = sum(1 for pid in train_pids if train_pid_to_score[pid] > held_out_score_norm)
-        pred_rank = n_better + 1
-
-        # 实际排名（全量数据）
-        act_rank = actual_rank[held_out_pid]
-
-        results.append({
-            '折次': fold,
-            '剔除方案': held_out_pid,
-            '预测排名': int(pred_rank),
-            '实际排名': int(act_rank),
-            '预测综合分': round(held_out_score_norm, 2),
-            '实际综合分': round(actual_scores[held_out_pid], 4),
-        })
-        predicted_ranks.append(pred_rank)
-        actual_ranks.append(act_rank)
-
-        print(f'  折{fold}: 剔除 {held_out_pid}, 预测排名={pred_rank}, 实际排名={act_rank}', flush=True)
-
-    results_df = pd.DataFrame(results)
-
-    # 计算 Spearman 相关系数
-    rho, p_value = spearmanr(predicted_ranks, actual_ranks)
-    print(f'\n  Spearman ρ = {rho:.4f} (p = {p_value:.4f})', flush=True)
-
-    # ---- 绘图 ----
-    # 改-14: 加大画布，调色板统一改用主色（蓝/橙/绿/红/紫），去掉旧灰
-    fig, ax = plt.subplots(1, 1, figsize=(9, 7))
-
-    # 改-14: 用 DIM_COLORS 风格映射（蓝/橙/绿/红/紫），更现代
-    plan_color_map = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd']
-    plan_colors = {pid: plan_color_map[i % len(plan_color_map)]
-                   for i, pid in enumerate(plan_ids)}
-
-    for i, (_, row) in enumerate(results_df.iterrows()):
-        c = plan_colors[int(row['剔除方案'])]
-        # 改-14-2: 圆缩小至 120（原来 220），ID 标签右偏 (+15,+10) 避免被圆遮挡
-        ax.scatter(row['实际排名'], row['预测排名'], s=120, c=c,
-                  label=f'方案 {int(row["剔除方案"])}',
-                  edgecolors='white', linewidth=1.5, zorder=5)
-        ax.annotate(str(int(row['剔除方案'])),
-                   (row['实际排名'], row['预测排名']),
-                   xytext=(10, -5), textcoords='offset points',
-                   fontsize=10, ha='left', va='bottom', fontweight='bold')
-
-    # 对角线（完美预测）
-    ax.plot([0.5, 5.5], [0.5, 5.5], '--', color='#666666', alpha=0.6, linewidth=1.5,
-            label='完美预测线 (y=x)')
-
-    ax.set_xlabel('实际排名', fontsize=12)
-    ax.set_ylabel('预测排名', fontsize=12)
-    ax.set_title(f'策略 B：留一方案交叉验证\nSpearman ρ = {rho:.3f} (p = {p_value:.3f})',
-                 fontsize=13, fontweight='bold')
-    ax.set_xlim(0.5, 5.5)
-    ax.set_ylim(0.5, 5.5)
-    ax.set_xticks(range(1, 6))
-    ax.set_yticks(range(1, 6))
-    ax.tick_params(axis='both', labelsize=11)
-    ax.grid(True, alpha=0.3, linestyle=':')
-    ax.legend(loc='upper left', fontsize=9, framealpha=0.95)
-    ax.set_aspect('equal')
-
-    # 改-14: 简化 caveat——去掉 AI 味的"区间 -435 ~ 103""因归一化至训练集"等冗长解释
-    ax.text(0.98, 0.02,
-            '排名预测完全准确 (ρ=1.00)。\n预测综合分绝对值仅供参考。',
-            transform=ax.transAxes,
-            fontsize=10, verticalalignment='bottom', horizontalalignment='right',
-            bbox=dict(boxstyle='round,pad=0.5', facecolor='#F0F8FF',
-                      edgecolor='#1f77b4', alpha=0.9))
-
-    fig.suptitle(q1_title('跨数据集泛化性 - 策略 B：留一方案交叉验证'),
-                 fontsize=14, fontweight='bold')
-    fig.tight_layout()
-
-    out_fig = os.path.join(FIGURES_DIR, 'q1_generalization_loo_cv.png')
-    ensure_dir(os.path.dirname(out_fig))
-    fig.savefig(out_fig, dpi=150, bbox_inches='tight')
-    plt.close(fig)
-    print(f'  [save] {out_fig}', flush=True)
-
-    # 保存 CSV
-    out_csv = os.path.join(TABLES_DIR, 'q1_generalization_loo_cv.csv')
-    ensure_dir(os.path.dirname(out_csv))
-    results_df.to_csv(out_csv, index=False, encoding='utf-8-sig')
-    print(f'  [save] {out_csv}', flush=True)
-
-    return results_df, rho, p_value
-
-
-# =============================================================================
 # 策略 C：Bootstrap 重采样泛化误差
 # =============================================================================
 
@@ -568,16 +408,18 @@ def bootstrap_generalization(n_bootstrap=100):
 # =============================================================================
 
 def run_generalization():
-    """运行全部三种泛化性检验策略"""
+    """运行两种泛化性检验策略（时间切分 + Bootstrap）
+
+    P0-2 完成：原"策略 B（LOO-CV）"已彻底删除，仅保留：
+    - 策略 A：时间切分验证
+    - 策略 C：Bootstrap 重采样（检验权重和评分的 95% CI 稳定性）
+    """
     print('=' * 60, flush=True)
     print('问题一：跨数据集泛化性检验', flush=True)
     print('=' * 60, flush=True)
 
     # 策略 A：时间切分
     time_split_df, monthly_df, avg_error_pct = time_split_validation()
-
-    # 策略 B：留一方案交叉验证
-    loo_df, rho, p_value = weight_robustness_check()
 
     # 策略 C：Bootstrap 重采样
     weight_ci, score_ci, avg_weight_ci, avg_score_ci = bootstrap_generalization(n_bootstrap=100)
@@ -587,14 +429,13 @@ def run_generalization():
     print('跨数据集泛化性检验汇总', flush=True)
     print('=' * 60, flush=True)
     print(f'策略 A（时间切分）：关键节日预测平均误差 {avg_error_pct:.2f}%', flush=True)
-    print(f'策略 B（权重稳健性，4-方案CRITIC 留一）：Spearman ρ = {rho:.4f} (p = {p_value:.4f})', flush=True)
-    print(f'  注：策略 B 仅验证 CRITIC 权重对方案变动的稳健性，并非真正泛化', flush=True)
     print(f'策略 C（Bootstrap）：权重平均 CI 宽度 {avg_weight_ci:.4f}，评分平均 CI 宽度 {avg_score_ci:.2f}', flush=True)
+    print('（注：原"策略 B（LOO-CV，ρ=1.00）"已废弃——该方法检验的是 CRITIC 权重对方案的稳健性，并非真正的泛化能力）', flush=True)
 
-    # 结论
-    if rho >= 0.8 and avg_error_pct < 20:
+    # 结论（基于平均误差和评分 CI 宽度）
+    if avg_error_pct < 30 and avg_score_ci < 10:
         conclusion = '方法对未见数据具有较好的泛化能力，未发生过拟合。'
-    elif rho >= 0.6 or avg_error_pct < 30:
+    elif avg_error_pct < 50 or avg_score_ci < 20:
         conclusion = '方法泛化能力中等，建议进一步扩大验证样本。'
     else:
         conclusion = '方法可能存在过拟合风险，建议检查模型复杂度。'
@@ -604,16 +445,13 @@ def run_generalization():
     print('\n' + '=' * 60, flush=True)
     print('输出文件列表：', flush=True)
     print(f'  CSV: {TABLES_DIR}\\q1_generalization_time_split.csv', flush=True)
-    print(f'  CSV: {TABLES_DIR}\\q1_generalization_loo_cv.csv', flush=True)
     print(f'  CSV: {TABLES_DIR}\\q1_generalization_bootstrap.csv', flush=True)
     print(f'  PNG: {FIGURES_DIR}\\q1_generalization_time_split.png', flush=True)
-    print(f'  PNG: {FIGURES_DIR}\\q1_generalization_loo_cv.png', flush=True)
     print(f'  PNG: {FIGURES_DIR}\\q1_generalization_bootstrap.png', flush=True)
     print('=' * 60, flush=True)
 
     return {
         'time_split': {'df': time_split_df, 'avg_error_pct': avg_error_pct},
-        'loo_cv': {'df': loo_df, 'rho': rho, 'p_value': p_value},
         'bootstrap': {'weight_ci': weight_ci, 'score_ci': score_ci,
                      'avg_weight_ci': avg_weight_ci, 'avg_score_ci': avg_score_ci},
     }

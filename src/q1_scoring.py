@@ -450,105 +450,132 @@ def score_time_strategy(data):
 
 
 def _score_per_plan(data) -> pd.DataFrame:
-    """为每个方案单独算 4 维综合得分（用于 CRITIC 赋权）
+    """为每个方案算 4 维综合得分（用于 CRITIC 赋权 + 展示分口径）
+
+    P1-1 改造要点：
+    - 上方位CTR 改用 percentile_zscore_score（消除 magic number 500）
+    - 4 个公式中所有 magic number（0.55/200/500/50 等）现在仅作为"理想锚点"，
+      用于 distance-based 评分；Z-Score/百分位部分用 percentile_zscore_score
+    - CRITIC 5×4 矩阵与 dimensions[*].score 同口径（详见 run_scoring）
+    - 所有展示分都来自本函数 + 列均值
 
     Returns
     -------
     pd.DataFrame: shape (n_plans, 4)
         index=方案ID, columns=[设计, 关键词, 出价, 时间]
-        每个单元格是 0-100 的综合得分
-
-    ----- 与 score_design_quality / score_keyword_management / etc. 的关系（P1-1 口径说明）-----
-    本函数用简化公式为"每个方案"算分（CRITIC 赋权只需要相对顺序，不必绝对阈值精确）。
-    score_design_quality() 等 4 个聚合函数则用 industry_score（行业阈值）+ 双轨评分，
-    计算"全公司"维度的绝对得分。两套并存：
-      - score_* → 全公司维度得分 → overall_score
-      - _score_per_plan → 5×4 矩阵 → CRITIC 权重
-    最终输出 dimensions[*].details 用 score_*（带所有明细指标），
-    plan_scores 用 _score_per_plan（只存 4 维聚合）。
+        每个单元格是 0-100 综合分
     """
     plan_total = data['plan_total']
     dfk = data['keyword_total']
     dfc = data['campaign_daily']
     daily = data['daily_full'].copy()
 
-    rows = []
-    for pid in plan_total['方案ID'].unique():
-        # ---- 设计质量：单元层聚合 ----
+    plan_ids = sorted(plan_total['方案ID'].unique())
+
+    # 第一遍：收集所有方案的原始指标
+    raw_records = []
+    for pid in plan_ids:
         unit_p = data['unit_total'][data['unit_total']['方案ID'] == pid].copy()
         unit_p['上方位占比'] = unit_p['上方位展现量'] / unit_p['展现量'].replace(0, np.nan)
-        avg_top = unit_p['上方位占比'].mean()
 
-        # 上方位 CTR（仅当前方案）
-        dfc_p = dfc[dfc['方案ID'] == pid]
-        dfc_p = dfc_p.copy()
+        dfc_p = dfc[dfc['方案ID'] == pid].copy()
         dfc_p['上方位CTR_valid'] = dfc_p['上方位CTR'].where(dfc_p['上方位展现量'] > 0)
-        top_ctr = dfc_p['上方位CTR_valid'].mean()
-
-        # 上方位 CPC 倍数
         dfc_p['上方位CPC_valid'] = dfc_p['上方位CPC'].where(dfc_p['上方位点击量'] > 0)
         dfc_p['上方位CPC倍数'] = dfc_p['上方位CPC_valid'] / dfc_p['CPC'].replace(0, np.nan)
-        avg_ratio = dfc_p['上方位CPC倍数'].dropna().mean()
 
-        # 基尼系数
-        gini = gini_coefficient(unit_p['关键词数'].values if '关键词数' in unit_p.columns
-                                  else np.array([1.0]))
-
-        # 简单加权合成 0-100 分
-        s_design = 100 - abs(avg_top - 0.55) * 200     # 0.55 理想
-        s_design = max(0, min(100, s_design))
-        if not np.isnan(top_ctr):
-            s_design = s_design * 0.7 + min(top_ctr * 500, 100) * 0.3
-        if not np.isnan(avg_ratio):
-            s_design = s_design * 0.7 + max(0, 100 - abs(avg_ratio - 1.0) * 50) * 0.3
-        s_design = max(0, min(100, s_design - gini * 50))
-
-        # ---- 关键词管理 ----
         kw_p = dfk[dfk['方案ID'] == pid] if '方案ID' in dfk.columns else dfk
         kw_eff = kw_p[kw_p['有消费']] if '有消费' in kw_p.columns else kw_p
-        if len(kw_eff) > 0:
-            eff_rate = kw_p['有消费'].mean() if '有消费' in kw_p.columns else 0.5
-            avg_bounce = kw_eff['跳出率'].mean() if '跳出率' in kw_eff.columns else 0.5
-            s_kw = eff_rate * 100 * 0.5 + (1 - avg_bounce) * 100 * 0.3
-            if 'CPC' in kw_eff.columns:
-                cpc_med = kw_eff['CPC'].dropna().median()
-                s_kw += max(0, 100 - cpc_med * 5) * 0.2
-            s_kw = max(0, min(100, s_kw))
-        else:
-            s_kw = 50.0
 
-        # ---- 出价策略 ----
         cpc_valid = dfc_p['CPC'].dropna()
         cpc_valid = cpc_valid[cpc_valid > 0]
-        if len(cpc_valid) > 0:
-            cpc_cv = cpc_valid.std() / cpc_valid.mean()
-            top_consume_ratio = dfc_p['上方位消费额'].sum() / max(dfc_p['消费额'].sum(), 1)
-            s_bid = max(0, 100 - cpc_cv * 100) * 0.5
-            s_bid += max(0, 100 - abs(top_consume_ratio - 0.5) * 200) * 0.5
-            s_bid = max(0, min(100, s_bid))
-        else:
-            s_bid = 50.0
+        cpc_cv = cpc_valid.std() / cpc_valid.mean() if (len(cpc_valid) > 0 and cpc_valid.mean() > 0) else 999
+        top_consume_ratio = dfc_p['上方位消费额'].sum() / max(dfc_p['消费额'].sum(), 1)
 
-        # ---- 投放时间 ----
-        # 消费注册相关：基于"方案的日消费额" 与 "全公司日注册" 的相关
-        # 简化：用"月度预算稳定性"代替
         daily_p = dfc_p.groupby('日期', as_index=False)['消费额'].sum()
         if len(daily_p) > 30:
             monthly = daily_p.set_index('日期').resample('ME')['消费额'].sum()
             cv_month = monthly.std() / monthly.mean() if monthly.mean() > 0 else 1
-            # 改-5：平滑曲线（指数衰减）替代硬截断
-            # 旧公式：max(0, 100 - |CV-0.3| * 150)  → CV≥1 全部 0 分，无区分度
-            # 新公式：s = 100 / (1 + k*(CV-CV_ideal)^2)
-            #       CV=0.3 时 s=100；CV=0.5 时 s≈88；CV=1.0 时 s≈55；CV=2.0 时 s≈22
-            CV_IDEAL = 0.3
-            K_PENALTY = 0.6
-            s_time = 100.0 / (1.0 + K_PENALTY * (cv_month - CV_IDEAL) ** 2)
-            s_time = max(0, min(100, s_time))
         else:
+            cv_month = 1.0
+
+        raw_records.append({
+            '方案ID': pid,
+            '上方位占比': unit_p['上方位占比'].mean(),
+            '上方位CTR': dfc_p['上方位CTR_valid'].mean(),
+            '上方位CPC倍数': dfc_p['上方位CPC倍数'].dropna().mean() if len(dfc_p) > 0 else 1.0,
+            '基尼系数': gini_coefficient(unit_p['关键词数'].values if '关键词数' in unit_p.columns
+                                         else np.array([1.0])),
+            '关键词有效率': kw_p['有消费'].mean() if '有消费' in kw_p.columns else 0.5,
+            '跳出率均值': kw_eff['跳出率'].mean() if '跳出率' in kw_eff.columns and len(kw_eff) > 0 else 0.5,
+            'CPC中位数': kw_eff['CPC'].dropna().median() if 'CPC' in kw_eff.columns and len(kw_eff) > 0 else 1.0,
+            'CPC变异系数': cpc_cv,
+            '上方位消费占比': top_consume_ratio,
+            '月度预算CV': cv_month,
+        })
+
+    plan_df = pd.DataFrame(raw_records).set_index('方案ID')
+
+    # 第二遍：用 percentile_zscore_score 做相对评分（P1-1：消除 magic number 500）
+    rows = []
+    for pid in plan_df.index:
+        p = plan_df.loc[pid]
+
+        # ---- 设计质量与创意 ----
+        # 上方位占比 = distance from 0.55（理想锚点 0.55）
+        avg_top = p['上方位占比']
+        s_top = 50.0 if pd.isna(avg_top) else max(0, 100 - abs(avg_top - 0.55) * 200)
+
+        # 上方位CTR：用 percentile_zscore_score 在 5 方案间做相对排名（P1-1：消除 magic number 500）
+        top_ctr = p['上方位CTR']
+        if pd.isna(top_ctr):
+            s_ctr = 50.0
+        else:
+            s_ctr = percentile_zscore_score(
+                top_ctr, plan_df['上方位CTR'].dropna(),
+                ideal_low=False, p_lo=0.25, p_hi=0.75
+            )
+
+        # 上方位CPC倍数：1.0 理想，距离衰减
+        avg_ratio = p['上方位CPC倍数']
+        s_ratio = 50.0 if pd.isna(avg_ratio) else max(0, min(100, 100 - abs(avg_ratio - 1.0) * 50))
+
+        s_design = s_top * 0.5 + s_ctr * 0.3 + s_ratio * 0.2
+        gini = p['基尼系数']
+        s_design = max(0, min(100, s_design - (gini if not pd.isna(gini) else 0) * 50))
+
+        # ---- 关键词管理与运用 ----
+        eff = p['关键词有效率']
+        s_eff = eff * 100 if not pd.isna(eff) else 50.0
+
+        bounce = p['跳出率均值']
+        s_bounce = 100 - bounce * 100 if not pd.isna(bounce) else 50.0
+
+        cpc_med = p['CPC中位数']
+        s_cpc = max(0, 100 - (cpc_med - 1.0) * 50) if not pd.isna(cpc_med) else 50.0
+
+        s_kw = s_eff * 0.5 + s_bounce * 0.3 + s_cpc * 0.2
+
+        # ---- 出价策略与预算 ----
+        cpc_cv = p['CPC变异系数']
+        s_cv = max(0, 100 - cpc_cv * 100) if not pd.isna(cpc_cv) else 50.0
+        s_cv = min(100, s_cv)
+
+        top_ratio = p['上方位消费占比']
+        s_top_ratio = 100 - abs(top_ratio - 0.5) * 200 if not pd.isna(top_ratio) else 50.0
+        s_top_ratio = max(0, min(100, s_top_ratio))
+
+        s_bid = s_cv * 0.5 + s_top_ratio * 0.5
+
+        # ---- 投放策略与时间 ----
+        cv_month = p['月度预算CV']
+        if pd.isna(cv_month):
             s_time = 50.0
+        else:
+            s_time = 100.0 / (1.0 + 0.6 * (cv_month - 0.3) ** 2)
+            s_time = max(0, min(100, s_time))
 
         rows.append({
-            '方案ID':  pid,
+            '方案ID': pid,
             '设计质量与创意':   round(s_design, 2),
             '关键词管理与运用': round(s_kw, 2),
             '出价策略与预算':   round(s_bid, 2),
@@ -558,33 +585,48 @@ def _score_per_plan(data) -> pd.DataFrame:
     return pd.DataFrame(rows).set_index('方案ID')
 
 
+def dim_scores_from_per_plan(plan_scores_df: pd.DataFrame) -> dict:
+    """P1-1：从 _score_per_plan 5×4 矩阵计算 4 个维度的全公司综合分（列均值）
+
+    Returns
+    -------
+    dict: {维度名: 维度分（0-100）}
+        key 顺序：设计质量与创意 / 关键词管理与运用 / 出价策略与预算 / 投放策略与时间
+    """
+    return {col: round(float(plan_scores_df[col].mean()), 1)
+            for col in plan_scores_df.columns}
+
+
 def run_scoring():
-    """执行所有评分（含 CRITIC 混合赋权）"""
+    """执行所有评分（含 CRITIC 混合赋权）
+
+    P1-1 修复后口径：
+    - 维度综合分（dimensions[*].score）= _score_per_plan 矩阵的列均值（口径统一）
+    - 方案综合分（plan_scores[*].综合分）= 该方案 4 维得分按 CRITIC 混合权重加权
+    - overall_score = 维度综合分 × CRITIC 混合权重 = 方案综合分的均值
+    - score_design_quality() 等 4 个函数**仅用于 details 输出**（行业阈值明细指标）
+      不再用于 dimensions[*].score
+    """
     print('[q1] 加载数据...', flush=True)
     data = build_q1_data()
 
-    print('[q1] 1) 设计质量评分...', flush=True)
-    s1 = score_design_quality(data)
-    print('  评分 =', s1['综合评分'], flush=True)
-
-    print('[q1] 2) 关键词管理评分...', flush=True)
-    s2 = score_keyword_management(data)
-    print('  评分 =', s2['综合评分'], flush=True)
-
-    print('[q1] 3) 出价策略评分...', flush=True)
-    s3 = score_bid_strategy(data)
-    print('  评分 =', s3['综合评分'], flush=True)
-
-    print('[q1] 4) 投放时间评分...', flush=True)
-    s4 = score_time_strategy(data)
-    print('  评分 =', s4['综合评分'], flush=True)
-
-    # ===== 改-1: CRITIC + 业务混合赋权 =====
-    print('\n[q1] 改-1: CRITIC 混合赋权...', flush=True)
-    from src.q1_weights import compute_weights, save_weights, SUBJECTIVE_WEIGHTS
+    # ===== P1-1：唯一评分入口 =====
+    print('[q1] P1-1: _score_per_plan 计算 5×4 矩阵...', flush=True)
     plan_scores = _score_per_plan(data)                    # 5×4 矩阵
-    score_matrix = plan_scores.values                       # numpy
+    score_matrix = plan_scores.values
     dim_names = list(plan_scores.columns)
+
+    # 维度分 = 列均值（口径统一）
+    dim_scores = dim_scores_from_per_plan(plan_scores)
+    s1, s2, s3, s4 = (dim_scores['设计质量与创意'],
+                       dim_scores['关键词管理与运用'],
+                       dim_scores['出价策略与预算'],
+                       dim_scores['投放策略与时间'])
+    print(f'  维度分（5方案均值）: 设计 {s1:.1f} / 关键词 {s2:.1f} / 出价 {s3:.1f} / 时间 {s4:.1f}', flush=True)
+
+    # ===== CRITIC + 业务混合赋权 =====
+    print('\n[q1] CRITIC 混合赋权...', flush=True)
+    from src.q1_weights import compute_weights, save_weights, SUBJECTIVE_WEIGHTS
     weights_result = compute_weights(score_matrix, dim_names, SUBJECTIVE_WEIGHTS)
     weights_df = save_weights(weights_result)
     print(f'  CRITIC 权重: {weights_result["critic_weights"]}', flush=True)
@@ -594,10 +636,10 @@ def run_scoring():
 
     # ===== 用混合权重计算综合评分 =====
     overall = (
-        mixed_weights['设计质量与创意']   * s1['综合评分'] +
-        mixed_weights['关键词管理与运用'] * s2['综合评分'] +
-        mixed_weights['出价策略与预算']   * s3['综合评分'] +
-        mixed_weights['投放策略与时间']   * s4['综合评分']
+        mixed_weights['设计质量与创意']   * s1 +
+        mixed_weights['关键词管理与运用'] * s2 +
+        mixed_weights['出价策略与预算']   * s3 +
+        mixed_weights['投放策略与时间']   * s4
     )
 
     # 评级（统一阈值：A≥85 / B70-84 / C60-69 / D50-59 / E<50；与 paper.md 附录 D 一致）
@@ -612,9 +654,16 @@ def run_scoring():
     else:
         grade = 'E (差)'
 
+    # ===== P1-1：score_* 仅用于 details 输出（不再影响 overall_score）=====
+    print('\n[q1] P1-1: score_* 计算 details 明细（仅供附录，不影响 overall）...', flush=True)
+    s1_detail = score_design_quality(data)
+    s2_detail = score_keyword_management(data)
+    s3_detail = score_bid_strategy(data)
+    s4_detail = score_time_strategy(data)
+
     result = {
         'overall_score': round(overall, 1),
-        'overall_score_method': '按4维度加权平均 (Σ 维度分 × 混合权重)；不等同于 5 方案综合分的算术平均',
+        'overall_score_method': '按4维度加权平均 (Σ 维度分 × 混合权重)；维度分 = _score_per_plan 矩阵列均值（口径统一 P1-1）',
         'overall_score_breakdown': {
             dim: {
                 'dimension_score': score,
@@ -622,36 +671,41 @@ def run_scoring():
                 'weighted':       round(mixed_weights[dim] * score, 2),
             }
             for dim, score in [
-                ('设计质量与创意',   s1['综合评分']),
-                ('关键词管理与运用', s2['综合评分']),
-                ('出价策略与预算',   s3['综合评分']),
-                ('投放策略与时间',   s4['综合评分']),
+                ('设计质量与创意',   s1),
+                ('关键词管理与运用', s2),
+                ('出价策略与预算',   s3),
+                ('投放策略与时间',   s4),
             ]
         },
         'grade': grade,
         'weights_method': 'CRITIC + 业务混合 70:30',
-        'plan_scores': plan_scores.to_dict(orient='index'),  # 新增：每方案 4 维得分
+        'plan_scores': {int(pid): {k: float(v) for k, v in row.items()}
+                        for pid, row in plan_scores.to_dict(orient='index').items()},
         'dimensions': {
-            '设计质量与创意':   {'score': s1['综合评分'],
+            '设计质量与创意':   {'score': s1,
                                'weight_critic':    weights_result['critic_weights']['设计质量与创意'],
                                'weight_subjective': weights_result['subjective_weights']['设计质量与创意'],
                                'weight_mixed':     mixed_weights['设计质量与创意'],
-                               'details': s1},
-            '关键词管理与运用': {'score': s2['综合评分'],
+                               'details': s1_detail,
+                               'p11_source': 'P1-1: 列均值（_score_per_plan 矩阵）'},
+            '关键词管理与运用': {'score': s2,
                                'weight_critic':    weights_result['critic_weights']['关键词管理与运用'],
                                'weight_subjective': weights_result['subjective_weights']['关键词管理与运用'],
                                'weight_mixed':     mixed_weights['关键词管理与运用'],
-                               'details': s2},
-            '出价策略与预算':   {'score': s3['综合评分'],
+                               'details': s2_detail,
+                               'p11_source': 'P1-1: 列均值（_score_per_plan 矩阵）'},
+            '出价策略与预算':   {'score': s3,
                                'weight_critic':    weights_result['critic_weights']['出价策略与预算'],
                                'weight_subjective': weights_result['subjective_weights']['出价策略与预算'],
                                'weight_mixed':     mixed_weights['出价策略与预算'],
-                               'details': s3},
-            '投放策略与时间':   {'score': s4['综合评分'],
+                               'details': s3_detail,
+                               'p11_source': 'P1-1: 列均值（_score_per_plan 矩阵）'},
+            '投放策略与时间':   {'score': s4,
                                'weight_critic':    weights_result['critic_weights']['投放策略与时间'],
                                'weight_subjective': weights_result['subjective_weights']['投放策略与时间'],
                                'weight_mixed':     mixed_weights['投放策略与时间'],
-                               'details': s4},
+                               'details': s4_detail,
+                               'p11_source': 'P1-1: 列均值（_score_per_plan 矩阵）'},
         },
     }
 
@@ -661,9 +715,9 @@ def run_scoring():
     plan_overall_dict = {int(pid): float(s) for pid, s in zip(plan_scores.index, plan_overall)}
     result['plan_overall_scores'] = plan_overall_dict
     result['plan_avg_for_reference'] = round(float(np.mean(plan_overall)), 2)
-    # plan_scores 中补一个 '综合分' 字段（to_dict(orient='index') 的 key 是 int）
-    for idx_pos, pid in enumerate(plan_scores.index):
-        result['plan_scores'][int(pid)]['综合分'] = float(plan_overall[idx_pos])
+    # plan_scores 中补一个 '综合分' 字段
+    for pid_key, sc in result['plan_scores'].items():
+        sc['综合分'] = float(plan_overall_dict[pid_key])
 
     # 保存
     ensure_dir(TABLES_DIR)
@@ -671,6 +725,7 @@ def run_scoring():
     with open(out_json, 'w', encoding='utf-8') as f:
         json.dump(result, f, ensure_ascii=False, indent=2)
     print(f'\n[save] {out_json}', flush=True)
+    print(f'[q1] overall_score = {result["overall_score"]}, grade = {grade}', flush=True)
 
     # 明细表
     rows = []
