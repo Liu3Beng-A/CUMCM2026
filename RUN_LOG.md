@@ -925,3 +925,16 @@ esults/figures/README.md（28 行）：命名约定 + 引用规范 + 历史废�
 [2026-09-13 12:46] **D-V2-002 论文 §5.4 更新**: §5.4.4 statistics 预期注册 5,995→4,688；注册转化率 20.4%→16.0%；§6.4 Q4 场景数 PoC 20→SAA N=1000；§7 关键诚实声明 reg 8,884→3,793 / share-Pearson 0.691→0.994 | paper/paper_final.md | OK
 [2026-09-13 12:47] **D-V2-002 全链路一致性验证**: Q3 SUM(reg)/SUM(click)=0.0700=PASS；Q4 SUM(reg)/SUM(click)=0.1598=PASS；Q3 baseline MILP=3,794/等比例=2,190/历史=3,794；Q4 baseline TSP=4,688/等比例=3,276/历史=2,052；reg_ratio_mean=1.0615 | tools/_verify_d_v2_002.py | OK
 [2026-09-13 12:48] **🟢 D-V2-002 修复闭环完成**: q3_milp.py:288 / q4_evaluator.py / q3_p2_baseline.py / q4_p2_baseline.py / 决策日志 / 论文摘要/§5.3/§5.4/§6.3/§6.4/§7 全部一致：Q3=3,793 / Q4=4,688；SUM(reg)/SUM(click) = 同期实测 CVR（评委可验证闭环）| - | OK
+[2026-09-13 13:42] **A1 备份 paper_final.md**：复制到 results/snapshots/pre_regen_20260913/paper_final.md (93,302 bytes) | OK
+[2026-09-13 13:42] **A2 删除 paper_final.md + paper.md + paper_appendix_q234.md**（问题源已备份至 snapshots/pre_regen_20260913/）| 3 files | OK
+[2026-09-13 13:42] **A3 删除 result4_v2.xlsx**（6,682 bytes，过期中间版本）| results/excel/result4_v2.xlsx | OK
+[2026-09-13 13:42] **A4 删除 src/*_v1_bak.py**（q3_data_prep + q3_milp + q4_evaluator 三个旧版本备份）| 3 files | OK
+[2026-09-13 13:43] **A5a 迁移 Q3Q4_Method_Architecture.md** 到 issue/q3q4_method_architecture.md (47,295 bytes) | OK
+[2026-09-13 13:43] **A5b 删除 16 个过时根目录文档**（BIAS/CHART/CHECK/CUMCM prompt/CURSOR*3/FINAL/HANDOFF/INDEX/MODEL_AUDIT*2/MODEL_REPAIR/P2/PARAMETER/VARIABLE/PoC）| 16 files | OK
+[2026-09-13 13:43] **A6 删除 issue/q1_code_review_report.md + issue/q1_fix_plan.md**（Q1 修复过程文档，Q1 已完成）| 2 files | OK
+[2026-09-13 13:45] **B1 修复 q3_milp.py total_cost 一致化**：循环外 total_cost = plan_df['cost'].round(2).sum()；JSON == result3.xlsx 投入金额列之和（不再反向读 xlsx）| src/q3_milp.py | OK
+[2026-09-13 13:48] **B2+B3 修复 q4_evaluator.py summary**：拆分 browse_click_ratio 为 search_space(3.7121) + actual(求解后加权)；拆分 n_units 为 eligible(12) + active(实际 unit_id 数)；total_cost 改 round(2).sum() 与 result4.xlsx 一致 | src/q4_evaluator.py | OK
+[2026-09-13 13:51] **B4 重跑 q3_milp + q4_evaluator**：JSON total_cost=51164.9/23487.98 == xlsx sum；n_active_units=6；browse_click_ratio_actual=3.7624；browse/click=2.93(Q3)/3.76(Q4) | result3.xlsx 89 rows, result4.xlsx 39 rows | OK
+[2026-09-13 13:55] **C 更新 WORK_STATE.md（重写 288 行）+ DECISION_LOG.md（追加 D-025/D-026/D-027/D-028）** | WORK_STATE.md + DECISION_LOG.md | OK
+[2026-09-13 13:56] **D 编写 tools/_verify_consistency.py**（13 项机器化校验：Q3 total_cost / Q4 total_cost / n_active_units / browse_click_ratio_actual / browse_click_ratio_search_space / 列对齐 / 行数合理 / 预算利用率 / 模板匹配）；跑 exit 0 全部 PASS | tools/_verify_consistency.py (248 行) | OK
+[2026-09-13 13:57] **汇总**：Phase A 清理 24 文件 + Phase B 三处 JSON 修复 + Phase C 文档同步 + Phase D 校验脚本——全部完成，论文 regen 暂缓待用户决定 | - | OK

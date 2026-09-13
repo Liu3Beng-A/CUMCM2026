@@ -435,6 +435,15 @@ def main():
     print(f"  -> {ext_path} | 6 因子扩展输出")
 
     # ---- Step 6: 求解汇总 ----
+    # B2 + B3 修复（2026-09-13）：
+    #   B2: 拆分 browse_click_ratio 为 search_space（同期全局比）+ actual（求解后加权比）
+    #       旧问题：3.7121（同期全局比）与 result4 实际加权比 3.7624 含义不同却同名
+    #       新方案：search_space=3.7121 是同期 31 天原始数据；actual=3.7624 是 11 单元不同 em['browses']/em['clicks'] 加权平均
+    #       不反向读 xlsx；actual 由 plan_df 派生（与 result4.xlsx 同源）
+    #   B3: 拆分 n_units 为 eligible（搜索空间）+ active（实际激活）
+    #       旧问题：n_units=12，但 result4.xlsx 中只有 6 单元有预算
+    #       新方案：eligible=12（cv_df 行数，搜索空间）；active=6（plan_df 中实际 unit_id）
+    #   附加：total_cost 改为 plan_df['cost'].round(2).sum()（与 result4.xlsx 投入金额列一致，B1 同类原则）
     summary = {
         # F4 + P2-2 修复（2026-09-13）：SAA 场景数已升级至 N_SCENARIOS
         'method': f'Two-Stage Stochastic Programming (SAA, S={N_SCENARIOS} scenarios in objective)',
@@ -442,11 +451,15 @@ def main():
         'c_base_definition': 'c_base[u] = proxy.r_click (consistent with Q3 P0-4 fix)',
         'n_scenarios': N_SCENARIOS,
         'budget': float(budget),
-        'n_units': int(cv_df.shape[0]),
+        'n_eligible_units': int(cv_df.shape[0]),  # B3：搜索空间单元数
+        'n_active_units': int(plan_df['unit_id'].nunique()),  # B3：实际激活单元数
         'n_active_rows': int(plan_df.shape[0]),
-        'total_cost': float(plan_df['cost'].sum()),
+        'total_cost': float(plan_df['cost'].round(2).sum()),  # 与 result4.xlsx 投入金额列一致
         'mean_cv': {fac: float(cv_df[f'cv_{fac}'].mean()) for fac in UNCERTAINTY_FACTORS},
-        'browse_click_ratio': float(browse_click_ratio),
+        'browse_click_ratio_search_space': float(browse_click_ratio),  # B2：同期全局比
+        'browse_click_ratio_actual': float(
+            plan_df['exp_browses'].sum() / max(plan_df['exp_clicks'].sum(), 1)
+        ),  # B2：求解后加权比
         'cvr_7d': float(cvr_7d),  # D-V2-002：同期 7 天实测 CVR（注册报数口径）
     }
     summary_path = os.path.join(TABLES_DIR, 'q4_two_stage_summary.json')
@@ -455,7 +468,9 @@ def main():
     print(f"  -> {summary_path}")
 
     print("\n" + "=" * 70)
-    print(f"✅ Q4 完成 · 投入 {plan_df['cost'].sum():.2f}/{budget:.2f} 元")
+    # 与 result4.xlsx 一致：用 plan_df['cost'].round(2).sum() 而非 plan_df['cost'].sum()
+    # 避免 print 显示 23487.92 而 JSON/xlsx 显示 23487.98 的不一致
+    print(f"✅ Q4 完成 · 投入 {plan_df['cost'].round(2).sum():.2f}/{budget:.2f} 元")
     print("=" * 70)
 
 

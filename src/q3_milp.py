@@ -296,9 +296,14 @@ def main():
             'cost': cost, 'click': click, 'browse': browse,
             'reg': reg, 'top_imp': top_imp,
         })
-        total_cost += cost
+        # 注：B1 修复后，total_cost 不再在循环内累加，统一在循环外从 plan_df 派生
 
     plan_df = pd.DataFrame(rows)
+    # B1 修复（2026-09-13）：total_cost 改为与 result3.xlsx 投入金额列严格一致
+    #   旧逻辑：total_cost += cost（未舍入 PuLP 解）→ JSON 51,164.93 vs Excel 51,164.90（差 0.03）
+    #   新逻辑：total_cost = plan_df['cost'].round(2).sum() → JSON == Excel sum
+    #   不反向读 xlsx（数据契约单向：JSON 从 plan_df 派生）
+    total_cost = float(plan_df['cost'].round(2).sum()) if len(plan_df) > 0 else 0.0
     print(f"\n[解] 投放行数 = {plan_df.shape[0]} | 总投入 = {total_cost:.2f} 元")
     plan_df.to_pickle(os.path.join(out_dir, 'q3_optimal_plan.pkl'))
 

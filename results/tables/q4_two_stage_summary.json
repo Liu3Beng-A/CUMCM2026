@@ -4,9 +4,10 @@
   "c_base_definition": "c_base[u] = proxy.r_click (consistent with Q3 P0-4 fix)",
   "n_scenarios": 1000,
   "budget": 23488.019999999993,
-  "n_units": 12,
+  "n_eligible_units": 12,
+  "n_active_units": 6,
   "n_active_rows": 39,
-  "total_cost": 23487.919940000007,
+  "total_cost": 23487.98000000001,
   "mean_cv": {
     "cpc": 0.23753085796718842,
     "impressions": 0.7154924253659655,
@@ -15,6 +16,7 @@
     "browses": 0.9458798801930457,
     "regs": 1.3333461669627928
   },
-  "browse_click_ratio": 3.7121389083547456,
+  "browse_click_ratio_search_space": 3.7121389083547456,
+  "browse_click_ratio_actual": 3.7623781963611185,
   "cvr_7d": 0.15977575332866154
 }

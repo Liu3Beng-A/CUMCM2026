@@ -69,3 +69,11 @@ D-036 (2026-09-13): P0-7 hotfix —— 单点修复 Q1 JSON 评分链路对齐 b
 - 副作用：regen_figures.py 也调 apply_penalty_to_score() → 双重扣分 bug（17.4 / 36.8 出现）
 - 副作用修复：在 q1_holiday_penalty.py 加幂等保护（检测 original_score 已存在则恢复基准再扣分）
 - 验证：JSON 50.7/D 永久保持、9 张过期 PNG 重生成、9/9 时间戳 ≥ JSON
+
+[2026-09-13 13:45] D-025 | **B1 修复 q3_milp.py total_cost 一致化** | 旧：循环累加未舍入 → JSON 51,164.93 vs result3.xlsx 51,164.90（差 0.03）| 新：循环外 total_cost = plan_df['cost'].round(2).sum() 派生 | 选择原因：(1) 不反向读 xlsx（数据契约单向）；(2) JSON 字段直接由 plan_df 求和，与 xlsx 写入口径一致；(3) PuLP 浮点精度差异（每行 round 后求和 vs 总和 round）自动消除 | 修改文件：src/q3_milp.py | 验证：JSON total_cost = 51,164.9 = result3.xlsx 投入金额列之和 ✓
+
+[2026-09-13 13:48] D-026 | **B2 修复 q4_evaluator.py browse_click_ratio 拆分** | 旧：单字段 3.7121 含义模糊（同期全局比 ≠ 求解后加权比）| 新：拆为 browse_click_ratio_search_space (3.7121 同期 31 天全局比) + browse_click_ratio_actual (3.7624 求解后 11 单元不同 em['browses']/em['clicks'] 加权平均) | 选择原因：(1) 两个比值来源不同（search_space 来自 same_period 全局聚合，actual 来自 plan_df 加权），合一会误导读者；(2) 命名透明，读者可立即理解；(3) 不反向读 xlsx；(4) 与 result4.xlsx 的实际 browse/click 严格一致 | 修改文件：src/q4_evaluator.py summary 字段 | 验证：browse_click_ratio_actual = 3.7624 = result4.xlsx 实际加权和 ✓
+
+[2026-09-13 13:48] D-027 | **B3 修复 q4_evaluator.py n_units 拆分** | 旧：单字段 n_units=12，但 result4.xlsx 只有 6 单元有预算 | 新：拆为 n_eligible_units (12, cv_df 行数=搜索空间) + n_active_units (6, plan_df['unit_id'].nunique()=实际激活) | 选择原因：(1) "12 vs 6"是两个不同口径，合并表达不准确；(2) 命名透明；(3) 与论文叙事 "12 单元均在搜索空间内，6 单元获得预算分配" 完全对齐 | 修改文件：src/q4_evaluator.py summary 字段 | 验证：n_active_units = 6 = result4.xlsx 推广单元去重数 ✓
+
+[2026-09-13 13:51] D-028 | **论文重新生成暂缓（Q5）** | 用户决定：先删除旧论文备份，源码 JSON 一致性修复完成，但 paper.md 重新生成暂缓 | 选择原因：(1) 当前所有 xlsx/JSON 数字已严格一致（D025/D026/D027 三处修复后），regen 所需数据基础已就绪；(2) 用户判断论文重写时机另行决定；(3) paper_final.md 已备份至 results/snapshots/pre_regen_20260913/ 留痕 | 状态：⏸ 暂缓 | 待启动条件：用户说"开始重写"或"重生成论文" | 校验工具：tools/_verify_consistency.py 待 regen 时启用
