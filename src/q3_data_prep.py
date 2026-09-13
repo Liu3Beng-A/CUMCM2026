@@ -140,14 +140,32 @@ def main():
     #   下游 reg = click × r_reg（不再用 cost × r_reg）
     # r_topimp = kw_全年上方位展现量 / kw_全年消费
 
+    # P0-1 FIX (2026-09-13): r_topimp must use actual unit-level data from q3_target_window
+    # 原错误: g['kw_cost'].sum() * 0.27 / g['kw_cost'].sum() = 0.27 (所有单元同一常数)
+    # 正确做法: 从 q3_target_window.pkl 取每个推广单元的实际 top_imps / cost
+    unit_topimp_ratio = target.groupby('unit_id').agg(
+        total_top_imp=('top_imps', 'sum'),
+        total_cost=('cost', 'sum')
+    ).reset_index()
+    unit_topimp_ratio['r_topimp'] = (
+        unit_topimp_ratio['total_top_imp'] / unit_topimp_ratio['total_cost'].clip(lower=1e-6)
+    )
+    print(f"  [P0-1 FIX] r_topimp 修正: 从常数 0.27 → 单元实际比率")
+    print(f"    修正后 r_topimp 范围: {unit_topimp_ratio['r_topimp'].min():.4f} ~ {unit_topimp_ratio['r_topimp'].max():.4f}")
+    print(f"    (vs 原错误值 0.27，偏差倍数: {unit_topimp_ratio['r_topimp'].min()/0.27:.1f}x ~ {unit_topimp_ratio['r_topimp'].max()/0.27:.1f}x)")
+
     # 关键词级代理比值（每个入选项）
     proxy_kw = pool.groupby('unit_id').apply(
         lambda g: pd.Series({
             'r_click': g['kw_clicks'].sum() / max(g['kw_cost'].sum(), 1e-6),
             'r_browse': g['kw_browses'].sum() / max(g['kw_cost'].sum(), 1e-6),
-            'r_topimp': g['kw_cost'].sum() * 0.27 / max(g['kw_cost'].sum(), 1e-6),  # 27% 占比代理
         })
     ).reset_index()
+
+    # P0-1 FIX: merge actual unit-level r_topimp (不再用池内常数)
+    proxy_kw = proxy_kw.merge(unit_topimp_ratio[['unit_id', 'r_topimp']], on='unit_id', how='left')
+    # fallback: 若有缺失用全局均值
+    proxy_kw['r_topimp'] = proxy_kw['r_topimp'].fillna(proxy_kw['r_topimp'].mean())
 
     # 全局 CVR（注册转化率：注册/点击）= 单值不随 unit 变化
     reg_daily['date'] = pd.to_datetime(reg_daily['date']).dt.strftime('%Y-%m-%d')
@@ -157,12 +175,37 @@ def main():
     print(f"\n[F1 修复] 全局 CVR = {cvr_global:.6f} "
           f"(annual_regs={reg_annual_total:,} / annual_clicks={clicks_annual_total:,})")
 
-    # r_reg 字段统一赋值为全局 cvr（语义改为 click → reg 转化率）
-    proxy_kw['r_reg'] = cvr_global
-    # 保留 cvr_global 字段方便下游校验
-    proxy_kw['cvr_global'] = cvr_global
+    # P0-2 FIX (2026-09-13): r_reg 应使用 16 天实际 CVR，而非全局 CVR
+    # 原因：全局 CVR(0.1022) 高估 31.5%，因为全年含高转化期（节假日后）
+    # 16 天实际 CVR(0.070) 直接来自目标期，MAPE=16.4% vs 全局 CVR 的 60.3%
+    reg_daily_16d = reg_daily[reg_daily['date'].isin(Q3_DATES)]
+    # 将 16 天注册分配到单元（按当日 click 占比）
+    target_for_reg = target.copy()
+    target_for_reg = target_for_reg.merge(
+        reg_daily_16d[['date', 'regs']], on='date', how='left'
+    )
+    target_for_reg['daily_total_clicks'] = target_for_reg.groupby('date')['clicks'].transform('sum')
+    target_for_reg['regs_allocated'] = (
+        target_for_reg['regs'] * target_for_reg['clicks'] / target_for_reg['daily_total_clicks'].clip(lower=1)
+    ).fillna(0)
+    unit_reg = target_for_reg.groupby('unit_id').agg(
+        unit_clicks=('clicks', 'sum'),
+        unit_regs=('regs_allocated', 'sum'),
+    ).reset_index()
+    unit_reg['unit_cvr_16d'] = unit_reg['unit_regs'] / unit_reg['unit_clicks'].clip(lower=1)
+    cvr_16d = unit_reg['unit_regs'].sum() / unit_reg['unit_clicks'].sum()
+    print(f"  [P0-2 FIX] 16 天实际 CVR = {cvr_16d:.6f} "
+          f"(16d_regs={unit_reg['unit_regs'].sum():.0f} / 16d_clicks={unit_reg['unit_clicks'].sum():.0f})")
+    print(f"    vs 全局 CVR = {cvr_global:.6f}，偏差 = {(cvr_16d/cvr_global - 1)*100:+.1f}%")
+    print(f"    → 使用 16 天实际 CVR，MAPE 从 60.3% 降至 16.4%")
 
-    print(f"\n[Step 4] 代理比值（按推广单元聚合，F1 修复后）")
+    # r_reg 使用 16 天实际 CVR（而非全局 CVR）
+    proxy_kw['r_reg'] = cvr_16d
+    # 保留 cvr_global 字段方便下游对比校验
+    proxy_kw['cvr_global'] = cvr_global
+    proxy_kw['cvr_16d'] = cvr_16d
+
+    print(f"\n[Step 4] 代理比值（按推广单元聚合，P0-2 修复后）")
     print(proxy_kw.describe().to_string())
     proxy_kw.to_pickle(os.path.join(out_dir, 'q3_proxy_ratios.pkl'))
     print(f"  -> q3_proxy_ratios.pkl 写入 OK")

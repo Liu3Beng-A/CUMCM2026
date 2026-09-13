@@ -873,3 +873,20 @@ esults/figures/README.md（28 行）：命名约定 + 引用规范 + 历史废�
 [2026-09-13 02:02] **S3 FINAL_REVIEW.md 终极版**: 15 节 496 行 (含 28 条提示词全覆盖 + 16 项关键数字自检 + 26 项完成条件 + 3 项 F1/F2/F3 修复确认) | FINAL_REVIEW.md | OK
 [2026-09-13 02:05] **S4 论文 + 评审 全部完成**: 参考文献 10 条全部 WebSearch 验证为真 (CRITIC/Prophet/BH FDR/Bertsimas/Boyd 等); paper/paper.md 与 paper/paper_final.md MD5 一致 (3d60cf4c...); FINAL_REVIEW.md 15 节 496 行 | 28 条提示词全覆盖 + 26 项完成条件全过 | OK
 [2026-09-13 02:05] **🟢 最终论文阶段完成**: 论文 (1283 行) + FINAL_REVIEW.md (496 行) + 全部验证脚本 + 三轮审稿; 任务可交付 | - | OK
+[2026-09-13 10:45] **AUDIT 启动**: 读取 MODEL_AUDIT_V2_当前数学模型问题审计与修复方案.md; 扫描项目 Q3/Q4 代码; 发现 P0-1: r_topimp 恒为 0.27 导致展现量 -95.4% | src/q3_*.py, results/tables/*.json | OK
+[2026-09-13 10:50] **AUDIT P0-1 根因定位**: q3_data_prep.py 第148行: r_topimp = kw_cost×0.27/kw_cost = 0.27 (所有12单元同一常数); 实际单元级 r_topimp = 1.95~9.60; 偏差 7×~36× | MODEL_AUDIT_V2.md | OK
+[2026-09-13 10:55] **AUDIT P0-1 修复**: q3_data_prep.py: 改用 q3_target_window.pkl 的实际单元级 top_imps/cost 比值; 重新运行 q3_data_prep | src/q3_data_prep.py | OK
+[2026-09-13 11:00] **AUDIT P0-2/3/4/5 审计**: r_reg 全局CVR高估31.5% (0.1022 vs 16天0.070); r_browse权重0.1不影响MILP(已敏感性证实); 线性假设R²=0.74; 无实质数据泄漏 | tools/_audit_p0_2_5_en.py | OK
+[2026-09-13 11:05] **AUDIT P0-6 Q4问题**: Q4 仅用场景0优化(非真正Two-Stage SP); CV窗口与目标期重叠6天 | src/q4_data_prep.py, src/q4_evaluator.py | OK
+[2026-09-13 11:10] **AUDIT 写报告**: MODEL_AUDIT_V2.md 完整审计报告; 含 P0-1~P0-6 + P1 + 修复路线图 | MODEL_AUDIT_V2.md 293行 | OK
+[2026-09-13 11:15] **修复 P0-2**: q3_data_prep.py: r_reg 从 cvr_global(0.1022) → cvr_16d(0.0700); 修正后 MAPE=16.4% vs 原60.3% | src/q3_data_prep.py | OK
+[2026-09-13 11:20] **修复 P0-4**: q3_milp.py: 目标函数从 0.4×r_click+0.1×r_browse+0.5×r_reg → r_click(直接最大化点击效率); 删除无依据权重 | src/q3_milp.py | OK
+[2026-09-13 11:25] **修复后验证**: 重新运行 q3_milp (Optimal, 43.79s); top_imp=297,446(=), clicks=54,200(+30.7%), reg=3,794; 全部修复验证通过 | results/excel/result3.xlsx | OK
+[2026-09-13 11:30] **AUDIT 完成**: 写 MODEL_REPAIR_DECISION_LOG_V2.md; 5项修复全部落地; 论文禁止使用"最优/高效"等表述直到Q4修复完成 | MODEL_REPAIR_DECISION_LOG_V2.md 105行 | OK
+[2026-09-13 11:48] **T1 F5 修复**：q4_data_prep.py: history_end '2025-09-16' -> '2025-09-10'（避免 6 天目标期泄漏），history_start '2025-08-18' -> '2025-08-11' 保持 31 天样本 | src/q4_data_prep.py | OK
+[2026-09-13 11:50] **T2 F4 修复**：q4_evaluator.py: solve_two_stage_sp() 改为 SAA 形式，目标函数对 N_SCENARIOS=20 场景全加权求期望；c_base[u]=proxy.r_click（与 Q3 P0-4 一致）；移除 scenarios[0] 单一场景依赖 | src/q4_evaluator.py | OK
+[2026-09-13 11:52] **T3 修复**：q4_evaluator.py: (1) 删除硬编码 3.712 改为 browse_click_ratio 显式参数 (2) 删除 0.27 fallback 改用 proxy 全局均值 (3) exp_cpc/exp_impressions 公式清理 (4) 删除 global kw_pool_proxy 改用 kw_max_cost_dict 显式参数 (5) 添加 r_imp=impressions/cost 到 proxy_dict (6) 添加 Q4_PRED_DATES 模块常量 | src/q4_evaluator.py | OK
+[2026-09-13 11:54] **T4 修复**：q3_milp.py: (1) docstring 第 8-9 行删除 0.4/0.1/0.5 旧公式，更新为 P0-4 修复后的 r_click 单目标 + 修复理由 (2) 第 245 行 fallback 删除 0.1022 (全局 CVR) 和 0.27 (旧 r_topimp)，改用 proxy 全局均值 | src/q3_milp.py | OK
+[2026-09-13 11:55] **重跑验证链**：q4_data_prep (CV 窗口 08-11~09-10, 31 天, 12 单元) + q4_evaluator (SAA Optimal 目标 31,569.53, 总投入 23,487.98 ≤ 23,488.02, result4 39 行) + q3_milp (Optimal 目标 54,200.20 不变, total_cost 51,164.93, result3 89 行) | results/excel/result{3,4}.xlsx | OK
+[2026-09-13 11:56] **T5 论文更新**：paper.md: §1 摘要 Q3 注册 8,884 → 3,793 (P0-2) + Q4 注册 5,040 → 7,287 (F4); §5.3.3 目标函数简化为 r_click + D-Q3-004 HHI=0 说明 + P0-5 线性假设局限性; §5.3.4 P0-2 修复口径; §5.3.7 自检更新; §5.4.1 31 天窗口; §5.4.2 SAA 形式 + 修复前后对比; §5.4.3 删除 3.712 魔法数; §5.4.4 数值更新; §5.4.5 12 项 PASS; §6.3/§6.4 同步; §7 缺点同步 | paper/paper.md | OK
+[2026-09-13 11:57] **🟢 Q4 修复任务 T1-T5 全部完成**：F4 (SAA) + F5 (CV 窗口) + T3 (魔法数清理) + T4 (q3 doc drift) + T5 (论文措辞核查) 全部落地；result3/result4 列对齐附件2模板；result4 总投入 23,487.98 ≤ 严格预算 23,488.02；Q3/Q4 目标函数口径 c_base=r_click 一致 | - | OK

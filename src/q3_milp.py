@@ -2,12 +2,17 @@
 Q3 · MILP 优化器（PuLP · Q3Q4 doc §2.4）
 ==========================================
 
-**锁定决策（Q3Q4 doc §2.2 + §2.4 + BIAS_v2）**：
+**锁定决策（Q3Q4 doc §2.2 + §2.4 + BIAS_v2 + P0-4 FIX 2026-09-13）**：
 - 决策变量 x[k,t] = 关键词 k 在日期 t 的投入金额（连续变量，[0, ∞)）
 - 决策变量 y[k,t] ∈ {0,1} = 关键词 k 是否在日期 t 投放（二值变量）
-- 目标：max Σ_{k,t} (r_click × cost[k,t] + r_reg × cost[k,t])
-       = max Σ_{k,t} (r_click + r_reg) × x[k,t]
-       即总收益最大（低成本高效益代理）
+- 目标：max Σ_{k,t} (r_click × cost[k,t])
+       = max Σ_{k,t} r_click[u(k)] × x[k,t]
+       即总点击效率最大（低成本高效益代理）
+       P0-4 修复（2026-09-13）：删除原 0.4×r_click + 0.1×r_browse + 0.5×r_reg 加权和
+         - r_browse 权重 0.1 在 MILP 中完全无效（敏感性分析证实）
+         - 0.4/0.1/0.5 无业务依据
+         - r_reg 常数化（所有单元同一全局 CVR），无区分度
+       现简化为直接最大化点击效率 r_click，与 Q4 (F4 修复后) 口径一致
 - 约束：
   1. 总预算 ≤ 51,164.93 元（同期）
   2. 推广单元 u 日预算 ≤ 该单元同期日均预算
@@ -111,16 +116,24 @@ def main():
 
     # ---- 代理比值（按单元）----
     proxy_dict = proxy.set_index('unit_id')[['r_click', 'r_browse', 'r_topimp', 'r_reg']].to_dict('index')
-    # 收益系数：r_click × 0.4 + r_browse × 0.1 + r_reg × 0.5（归一化权重）
+    # P0-4 FIX (2026-09-13): 目标函数简化为直接最大化点击效率
+    # 原问题：coef = 0.4*r_click + 0.1*r_browse + 0.5*r_reg
+    #   r_browse 权重 0.1 在 MILP 中完全无效（敏感性分析证实）
+    #   0.4/0.1/0.5 无业务依据
+    # 修复方案：直接用 r_click（点击效率）作为唯一目标
+    #   最简单、最可解释、直接对应题目"高效益"目标
+    #   不引入无依据权重
     coef = {}
     for u in units:
         if u in proxy_dict:
             p = proxy_dict[u]
-            coef[u] = 0.4 * p['r_click'] + 0.1 * p['r_browse'] + 0.5 * p['r_reg']
+            # P0-4 FIX: 直接最大化点击效率（r_click = 单位成本点击数）
+            coef[u] = p['r_click']  # 简化：max Σ r_click × cost = max clicks
         else:
             coef[u] = 0.5  # fallback
     print(f"\n[代理比值] 单元收益系数 (前 5): "
           f"{dict(list(coef.items())[:5])}")
+    print(f"  [P0-4 FIX] 目标函数简化为 max Σ r_click × cost（直接最大化点击效率）")
 
     # ---- 单元日均预算上限 ----
     unit_budget_dict = unit_budget.set_index('unit_id').to_dict('index')
@@ -139,7 +152,7 @@ def main():
     M = max(kw_max_cost.values()) * 1.5  # big-M = 1.5 × 最大日消费
 
     # 目标函数
-    print("  [目标] max Σ (coef[u] × x[i])")
+    print("  [目标] max Σ (r_click[u] × x[i]) = 直接最大化点击效率")
     prob += pulp.lpSum(
         coef.get(c[1], 0.5) * x[i] for i, c in enumerate(candidates)
     ), 'total_value'
@@ -225,19 +238,35 @@ def main():
     # ---- 提取解 ----
     rows = []
     total_cost = 0
+    # T4 修复（2026-09-13）：fallback 代理值改从已加载的 proxy 全局均值填充
+    #   删除原硬编码 0.1022 (全局 CVR) 和 0.27 (旧 r_topimp 常数)
+    #   旧 fallback 的 0.27 与 P0-1 修复（单元实际 r_topimp 1.95~9.60）矛盾
+    #   旧 fallback 的 0.1022 是全局 CVR，与 P0-2 修复（16 天 CVR=0.070）矛盾
+    if len(proxy_dict) > 0:
+        fb_r_click = float(np.mean([v['r_click'] for v in proxy_dict.values()]))
+        fb_r_browse = float(np.mean([v['r_browse'] for v in proxy_dict.values()]))
+        fb_r_reg = float(np.mean([v['r_reg'] for v in proxy_dict.values()]))
+        fb_r_topimp = float(np.mean([v['r_topimp'] for v in proxy_dict.values()]))
+    else:
+        # 理论 fallback（不应触发，仅在 proxy_dict 完全为空时使用）
+        fb_r_click, fb_r_browse, fb_r_reg, fb_r_topimp = 0.5, 1.0, 0.07, 1.0
+    proxy_fallback = {
+        'r_click': fb_r_click, 'r_browse': fb_r_browse,
+        'r_reg': fb_r_reg, 'r_topimp': fb_r_topimp,
+    }
     for i, c in enumerate(candidates):
         cost = x[i].value()
         if cost is None or cost < 0.01:
             continue
         u = c[1]
         kw_id = int(c[2])
-        if u in proxy_dict:
-            p = proxy_dict[u]
-        else:
-            p = {'r_click': 0.5, 'r_browse': 1.0, 'r_reg': 0.1022, 'r_topimp': 0.27}
+        # P0-1 FIX: 用 proxy 全局均值填充（删除 0.27 常数）
+        p = proxy_dict.get(u, proxy_fallback)
         click = cost * p['r_click']
+        # 浏览量代理：browse = click × 2.93（历史均值浏览/点击比）
+        # P0-4 FIX：browse 不进入目标函数，仅用于结果报告
         browse = click * 2.93  # 浏览/点击 比 (历史均值)
-        # F1 修复（2026-09-12）：reg = click × CVR（避免 cost × r_reg 的结构性反相关）
+        # P0-2 FIX：reg = click × CVR_16d（使用 16 天实际 CVR，而非全局 CVR）
         reg = click * p['r_reg']
         top_imp = cost * p['r_topimp']
         rows.append({
@@ -284,7 +313,7 @@ def main():
         'n_active': int(plan_df.shape[0]),
         'n_constraints': len(prob.constraints),
         'solve_time_sec': round(time.time() - t0, 2),
-        'coef_formula': 'coef = 0.4*r_click + 0.1*r_browse + 0.5*r_reg',
+        'coef_formula': 'coef = r_click (P0-4 FIX: simplified to maximize click efficiency)',
         'unit_daily_multiplier': UNIT_DAILY_MULTIPLIER,
     }
     summary_path = os.path.join(TABLES_DIR, 'q3_milp_summary.json')

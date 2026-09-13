@@ -35,7 +35,7 @@ from src.utils import PROCESSED_DIR, ensure_dir  # noqa: E402
 # Q4 锁定参数
 Q4_DATES_2025 = [f"2025-09-{d:02d}" for d in range(11, 18)]  # 同期 7 天
 Q4_DATES_2026 = [f"2026-09-{d:02d}" for d in range(11, 18)]  # 预测 7 天
-HISTORY_DAYS = 30  # CV 估计窗口：最近 30 天
+HISTORY_DAYS = 31  # CV 估计窗口：31 天（08-11 ~ 09-10），F5 修复后避免与目标期重叠
 UNCERTAINTY_FACTORS = ['cpc', 'impressions', 'top_imp_pos', 'clicks', 'browses', 'regs']
 
 
@@ -87,14 +87,16 @@ def main():
     print(f"  同期预算 = {same_period_budget:.2f} 元")
 
     # ---- Step 2: 不确定性 CV（历史 30 天推广单元级）----
-    # 窗口：2025-08-18 ~ 2025-09-16 (30 天覆盖同期前 26 天 + 同期 7 天)
-    history_start = '2025-08-18'
-    history_end = '2025-09-16'  # 比同期截止 09-17 早 1 天
+    # ⚠️ F5 修复（2026-09-13）：截止日期必须在同期开始（09-11）之前，避免用目标期数据估计目标期不确定性
+    # 新窗口 2025-08-11 ~ 2025-09-10 = 31 天（与原 30 天窗口样本量等价，避开 6 天泄漏）
+    history_start = '2025-08-11'
+    history_end = '2025-09-10'
     history = unit_daily[
         (unit_daily['date'] >= history_start) & (unit_daily['date'] <= history_end)
     ].copy()
-    print(f"\n[Step 2] 历史 {HISTORY_DAYS} 天 ({history_start} ~ {history_end}) = "
-          f"{history.shape[0]} 行")
+    history_days_actual = (pd.to_datetime(history_end) - pd.to_datetime(history_start)).days + 1
+    print(f"\n[Step 2] 历史 {history_days_actual} 天 ({history_start} ~ {history_end}) = "
+          f"{history.shape[0]} 行 | 截止日 < 目标期 09-11（无泄漏）")
 
     history = history.merge(reg_daily, on='date', how='left')
     history['regs'] = history['regs'].fillna(0)
@@ -146,7 +148,7 @@ def main():
         'same_period': '2025-09-11~17',
         'same_period_budget': float(same_period_budget),
         'history_window': f'{history_start} ~ {history_end}',
-        'history_days': HISTORY_DAYS,
+        'history_days': history_days_actual,
         'n_units_cv': int(cv_df.shape[0]),
         'mean_cv': {f'cv_{fac}': float(cv_df[f'cv_{fac}'].mean()) for fac in UNCERTAINTY_FACTORS},
         'median_cv': {f'cv_{fac}': float(cv_df[f'cv_{fac}'].median()) for fac in UNCERTAINTY_FACTORS},

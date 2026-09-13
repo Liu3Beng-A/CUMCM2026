@@ -1,16 +1,19 @@
 {
-  "method": "Two-Stage Stochastic Programming (scenario 0 optimization)",
+  "method": "Two-Stage Stochastic Programming (SAA, S=20 scenarios in objective)",
+  "objective_formula": "max Σ_u c_base[u] × E[(click_mult_s + reg_mult_s)/2] × x",
+  "c_base_definition": "c_base[u] = proxy.r_click (consistent with Q3 P0-4 fix)",
   "n_scenarios": 20,
   "budget": 23488.019999999993,
-  "n_units": 11,
+  "n_units": 12,
   "n_active_rows": 39,
-  "total_cost": 23488.019940000006,
+  "total_cost": 23487.919940000007,
   "mean_cv": {
-    "cpc": 0.20620546164934997,
-    "impressions": 0.7848261096941311,
-    "top_imp_pos": 0.8077011368904085,
-    "clicks": 0.9470306071240632,
-    "browses": 0.9447642138978032,
-    "regs": 1.3570239012856413
-  }
+    "cpc": 0.23753085796718842,
+    "impressions": 0.7154924253659655,
+    "top_imp_pos": 0.7471778924131233,
+    "clicks": 0.9509175575568306,
+    "browses": 0.9458798801930457,
+    "regs": 1.3333461669627928
+  },
+  "browse_click_ratio": 3.7121389083547456
 }
