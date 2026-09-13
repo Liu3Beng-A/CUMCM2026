@@ -868,3 +868,8 @@ esults/figures/README.md（28 行）：命名约定 + 引用规范 + 历史废�
 [2026-09-13 01:45] **G3.V2 完成**：q4_lambda_robustness.png + q3_unit_date_heatmap.png 重做；可读性大幅提升（柱状图无意义 → KPI+表格；heatmap色阶单调 → 双面板水平bar+明细表）| 2 PNG | OK
 [2026-09-13 01:46] **G3.V2 改 tracker**：CHART_FIX_TRACKER.md line 17 P0-6 + line 18 P0-7 → V2 重构描述 | CHART_FIX_TRACKER.md | OK
 [2026-09-13 01:47] **G3.V2 清理**：删除临时探针 tools/_probe_q4_lambda.py | - | OK
+[2026-09-13 01:55] **S1 进入最终论文阶段**: 启动自动生成, 任务按 28 条提示词 推进 | - | -
+[2026-09-13 02:00] **S2 论文 §6/§7/§8 重组**: §6 模型检验 (含 Q1/Q2/Q3/Q4 全检验汇总) + §7 模型优缺点评价 (4 子节) + §8 AI 工具使用声明 (3 子节); 参考文献 8→10 条 (全部可验证) | paper.md 1089→1283 行 93739 bytes | OK
+[2026-09-13 02:02] **S3 FINAL_REVIEW.md 终极版**: 15 节 496 行 (含 28 条提示词全覆盖 + 16 项关键数字自检 + 26 项完成条件 + 3 项 F1/F2/F3 修复确认) | FINAL_REVIEW.md | OK
+[2026-09-13 02:05] **S4 论文 + 评审 全部完成**: 参考文献 10 条全部 WebSearch 验证为真 (CRITIC/Prophet/BH FDR/Bertsimas/Boyd 等); paper/paper.md 与 paper/paper_final.md MD5 一致 (3d60cf4c...); FINAL_REVIEW.md 15 节 496 行 | 28 条提示词全覆盖 + 26 项完成条件全过 | OK
+[2026-09-13 02:05] **🟢 最终论文阶段完成**: 论文 (1283 行) + FINAL_REVIEW.md (496 行) + 全部验证脚本 + 三轮审稿; 任务可交付 | - | OK
