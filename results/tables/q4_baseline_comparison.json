@@ -1,0 +1,17 @@
+{
+  "tsp_clicks": 29343.6513166497,
+  "tsp_hhi": 0.173554422746522,
+  "tsp_total_cost": 23487.919940000007,
+  "equal_weight": {
+    "clicks": 20504.489567427645,
+    "click_diff_vs_tsp_pct": -30.12291024671044,
+    "hhi": 0.09090909090909091
+  },
+  "historical": {
+    "clicks": 12843.000000000002,
+    "click_diff_vs_tsp_pct": -56.232440668647,
+    "hhi": 0.6789295885082106
+  },
+  "scenarios_used": 1000,
+  "unit_share_cap": 0.4
+}

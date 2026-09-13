@@ -1,8 +1,8 @@
 {
-  "method": "Two-Stage Stochastic Programming (SAA, S=20 scenarios in objective)",
+  "method": "Two-Stage Stochastic Programming (SAA, S=1000 scenarios in objective)",
   "objective_formula": "max Σ_u c_base[u] × E[(click_mult_s + reg_mult_s)/2] × x",
   "c_base_definition": "c_base[u] = proxy.r_click (consistent with Q3 P0-4 fix)",
-  "n_scenarios": 20,
+  "n_scenarios": 1000,
   "budget": 23488.019999999993,
   "n_units": 12,
   "n_active_rows": 39,
@@ -15,5 +15,6 @@
     "browses": 0.9458798801930457,
     "regs": 1.3333461669627928
   },
-  "browse_click_ratio": 3.7121389083547456
+  "browse_click_ratio": 3.7121389083547456,
+  "cvr_7d": 0.15977575332866154
 }

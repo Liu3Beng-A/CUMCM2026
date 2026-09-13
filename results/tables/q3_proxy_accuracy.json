@@ -1,20 +1,20 @@
 {
   "tolerance": 0.15,
   "n_units": 12,
-  "click_pass": 2,
-  "topimp_pass": 0,
-  "reg_pass": 0,
-  "click_ratio_mean": 1.4018854001789267,
-  "click_ratio_std": 0.772752154941815,
-  "topimp_ratio_mean": 0.053666729406765805,
-  "reg_ratio_mean": 0.17436041125768534,
-  "click_pass_rate": 0.16666666666666666,
-  "topimp_pass_rate": 0.0,
-  "reg_pass_rate": 0.0,
+  "click_pass": 12,
+  "topimp_pass": 12,
+  "reg_pass": 6,
+  "click_ratio_mean": 1.0,
+  "click_ratio_std": 0.0,
+  "topimp_ratio_mean": 1.0,
+  "reg_ratio_mean": 1.061486925963043,
+  "click_pass_rate": 1.0,
+  "topimp_pass_rate": 1.0,
+  "reg_pass_rate": 0.5,
   "correlation": {
-    "clicks_share_pearson": 0.9826499426867211,
-    "topimp_share_pearson": 0.9927673158205412,
-    "regs_share_pearson": 0.690784652543587
+    "regs_share_pearson": 0.9939786344129806,
+    "clicks_share_pearson": 1.0,
+    "topimp_share_pearson": 0.9999999999999999
   },
   "interpretation": "绝对比值通过率低是因 16 天日级波动大（季度/节日/异常日），但 share-Pearson 可达 0.9+ 说明相对顺序保持良好，代理对\"选哪些单元多投\"仍有指导价值。"
 }

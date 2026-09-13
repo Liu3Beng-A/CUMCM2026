@@ -56,8 +56,16 @@ except ImportError:
 
 
 # Two-Stage SP 参数
-N_SCENARIOS = 20          # 场景数（PoC：20）
+# P2-2 FIX (2026-09-13)：场景数从 20 提升至 1000
+#   SAA 收敛率 O(1/√N)：N=20 → SE=σ/4.47；N=1000 → SE=σ/31.6
+#   N=1000 是学界标准的 SAA 配置（N=20 偏少）
+#   预算约束紧绑时，决策几乎不变，但 CV/置信区间精度提升 7 倍
+N_SCENARIOS = 1000
 MAX_KEYWORDS_PER_UNIT_DATE = 25  # 强制分散
+# P2-5 FIX (2026-09-13)：单单元预算占比上限（防 HHI 过高）
+#   与 Q3 一致：UNIT_MAX_SHARE = 0.40（目标 HHI ≤ 0.25）
+#   Q3 实测：cap=0.40 → HHI=0.36（原 0.51），预算利用率 70%
+UNIT_MAX_SHARE = 0.40  # 单单元预算 ≤ 总预算的 40%
 UNCERTAINTY_FACTORS = ['cpc', 'impressions', 'top_imp_pos', 'clicks', 'browses', 'regs']
 
 # T3 修复（2026-09-13）：预测期日期集中管理，与 q4_data_prep.py 同源
@@ -86,7 +94,8 @@ def sample_scenarios(cv_df, n_scenarios=N_SCENARIOS, seed=42):
 
 
 def solve_two_stage_sp(cv_df, scenarios, budget, kw_per_unit, proxy_dict,
-                       browse_click_ratio=None, kw_max_cost_dict=None):
+                       browse_click_ratio=None, kw_max_cost_dict=None,
+                       cvr_7d=0.07):
     """Two-Stage SP 求解（SAA 形式：全场景加权期望目标）
 
     F4 修复（2026-09-13）：原版只取场景 0 的乘子做优化，其余 19 个场景仅用于后验。
@@ -95,6 +104,9 @@ def solve_two_stage_sp(cv_df, scenarios, budget, kw_per_unit, proxy_dict,
     其中 c_base[u] = proxy_dict[u]['r_click']（与 Q3 P0-4 修复一致）
 
     T3 修复（同时）：browse_click_ratio 与 kw_max_cost_dict 改为显式参数传入
+
+    D-V2-002 修复（同时）：cvr_7d 显式传入，注册报数口径 = 同期 7 天实测 CVR
+      默认 0.07（与 Q3 的 0.0700 同量级），由调用方从 same_period 数据计算覆盖
     """
     if not HAS_PULP:
         print("❌ PuLP 未安装")
@@ -172,6 +184,19 @@ def solve_two_stage_sp(cv_df, scenarios, budget, kw_per_unit, proxy_dict,
     budget_strict = budget - 0.10  # 留 0.10 元给 CBC 浮点累计误差
     prob += pulp.lpSum(x[i] for i in range(n_var)) <= budget_strict, 'budget'
 
+    # P2-5 FIX (2026-09-13)：单单元预算占比上限（防 HHI 过高）
+    #   Σ_{k,t in unit u} x[i] ≤ UNIT_MAX_SHARE × budget
+    #   12 单元 × 15% = 180%（理论上允许 6-7 单元满负荷），实际稀疏解会自然下降
+    print(f"  [P2-5 约束] 单单元预算占比上限 = {UNIT_MAX_SHARE*100:.0f}%")
+    for u in units:
+        idx_list_u = [var_idx[v] for v in var_keys if v[0] == u]
+        if not idx_list_u:
+            continue
+        prob += (
+            pulp.lpSum(x[i] for i in idx_list_u) <= UNIT_MAX_SHARE * budget,
+            f'unit_share_cap_{u}'
+        )
+
     # big-M
     for i in range(n_var):
         prob += x[i] <= M * y[i], f'bigM_{i}'
@@ -221,13 +246,21 @@ def solve_two_stage_sp(cv_df, scenarios, budget, kw_per_unit, proxy_dict,
         em = exp_mults[u]
         p = proxy_dict.get(u, proxy_mean)
 
-        # ===== T3 修复：干净公式（不再用 3.712 魔法数）=====
         # 点击：cost × r_click × 期望乘子
         click = cost * p['r_click'] * em['clicks']
-        # 注册：click × r_reg（与 Q3 一致，reg = click × CVR）
-        reg = click * p['r_reg']
-        # 浏览：click × (同期浏览/点击比) × 期望乘子（不再硬编码 3.712）
-        browse = click * (browse_click_ratio if browse_click_ratio else 1.0) * em['browses']
+        # 注册 FIX（2026-09-13）：用全局 cvr_7d 校准注册报数
+        reg = click * cvr_7d
+        # 浏览 FIX（2026-09-13）：browse = cost × r_browse × em['browses']（无双重计数）
+        #   修复前（BUG）：browse = click × browse_click_ratio × em['browses']
+        #     其中 click = cost × r_click × em['clicks']
+        #     browse_click_ratio = 总浏览/总点击（≈3.71）
+        #     → browse = cost × r_click × em['clicks'] × browse_click_ratio × em['browses']
+        #     → em['clicks'] 和 browse_click_ratio 同时出现，导致双重计数（browse/click 比例偏大）
+        #   正确公式：browse = cost × r_browse × em['browses']
+        #     r_browse = 总浏览/总成本（年度浏览/成本比）
+        #     em['browses'] = SAA均值浏览乘子（browses因子独立扰动）
+        #     → browse = 总浏览 × em['browses']（逻辑清晰，无重复因子）
+        browse = cost * p['r_browse'] * em['browses']
         # 上方位：cost × r_topimp × 期望乘子
         top_imp = cost * p['r_topimp'] * em['top_imp_pos']
         # ===== T3 修复：直接定义 exp_cpc / exp_impressions（不再代数混乱）=====
@@ -325,6 +358,13 @@ def main():
     browse_click_ratio = float(same_period['browses'].sum() / max(same_period['clicks'].sum(), 1))
     print(f"  [T3 修复] 浏览/点击比 = {browse_click_ratio:.3f}（同期实测）")
 
+    # D-V2-002 修复（2026-09-13）：注册报数口径 = 同期 7 天实测 CVR
+    #   p['r_reg'] = unit_regs/unit_cost（单元级 regs/cost，0.066~0.126）不可用于"click × CVR"口径报数
+    #   cvr_7d = total_actual_regs / total_actual_clicks（同期 7 天实测，与 Q3 16 天口径同类）
+    cvr_7d = float(same_period['regs'].sum() / max(same_period['clicks'].sum(), 1))
+    print(f"  [D-V2-002 修复] 同期 7 天 CVR = {cvr_7d:.4f}（同期实际："
+          f"regs={same_period['regs'].sum():.0f} / clicks={same_period['clicks'].sum():.0f}）")
+
     # T3 修复（2026-09-13）：kw_max_cost 作为显式 dict 传给求解函数（不再用 global kw_pool_proxy）
     kw_max_cost_dict = kw_pool_renamed.set_index(
         kw_pool_renamed['关键词'].astype(int)
@@ -349,6 +389,7 @@ def main():
         cv_df, scenarios, budget, kw_per_unit, proxy_dict,
         browse_click_ratio=browse_click_ratio,
         kw_max_cost_dict=kw_max_cost_dict,
+        cvr_7d=cvr_7d,  # D-V2-002：注册报数口径 = 同期 7 天实测 CVR
     )
     if plan_df is None:
         return
@@ -395,8 +436,8 @@ def main():
 
     # ---- Step 6: 求解汇总 ----
     summary = {
-        # F4 修复（2026-09-13）：method 字段更新为真正的 SAA 描述
-        'method': 'Two-Stage Stochastic Programming (SAA, S=20 scenarios in objective)',
+        # F4 + P2-2 修复（2026-09-13）：SAA 场景数已升级至 N_SCENARIOS
+        'method': f'Two-Stage Stochastic Programming (SAA, S={N_SCENARIOS} scenarios in objective)',
         'objective_formula': 'max Σ_u c_base[u] × E[(click_mult_s + reg_mult_s)/2] × x',
         'c_base_definition': 'c_base[u] = proxy.r_click (consistent with Q3 P0-4 fix)',
         'n_scenarios': N_SCENARIOS,
@@ -406,6 +447,7 @@ def main():
         'total_cost': float(plan_df['cost'].sum()),
         'mean_cv': {fac: float(cv_df[f'cv_{fac}'].mean()) for fac in UNCERTAINTY_FACTORS},
         'browse_click_ratio': float(browse_click_ratio),
+        'cvr_7d': float(cvr_7d),  # D-V2-002：同期 7 天实测 CVR（注册报数口径）
     }
     summary_path = os.path.join(TABLES_DIR, 'q4_two_stage_summary.json')
     with open(summary_path, 'w', encoding='utf-8') as f:

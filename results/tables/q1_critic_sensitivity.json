@@ -1,0 +1,27 @@
+{
+  "n_ratios_tested": 11,
+  "default_ratio": 0.7,
+  "all_ratios": [
+    1.0,
+    0.9,
+    0.8,
+    0.7,
+    0.6,
+    0.5,
+    0.4,
+    0.3,
+    0.2,
+    0.1,
+    0.0
+  ],
+  "rank_pearson_range": [
+    0.9,
+    1.0
+  ],
+  "rank_spearman_range": [
+    0.9,
+    1.0
+  ],
+  "rank_stable": true,
+  "interpretation": "CRITIC:业务=70:30 是经验参数。若 rank_spearman 在所有比例下 ≥ 0.6（与 70:30 排名相关性中等以上），则排名对该比例不敏感，70:30 是合理的选择。"
+}

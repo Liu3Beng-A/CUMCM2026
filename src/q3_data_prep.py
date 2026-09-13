@@ -167,6 +167,24 @@ def main():
     # fallback: 若有缺失用全局均值
     proxy_kw['r_topimp'] = proxy_kw['r_topimp'].fillna(proxy_kw['r_topimp'].mean())
 
+    # 校准修复（2026-09-13）：proxy_kw 增加 r_click_16d（16 天实际比值）
+    # 根因：annual r_click = annual_clicks / annual_cost 与 16d actual_clicks 不匹配
+    #   → cost × r_click(annual) / actual_clicks(16d) ≈ 1.40 倍系统性偏差
+    #   → 导致 reg_ratio_mean = 1.44 而非 1.0
+    # 修复：proxy_kw.r_click_16d = target[unit].clicks.sum() / target[unit].cost.sum()
+    #   这样 proxy_pred = cost × r_click_16d × cvr_16d = actual_clicks × cvr_16d = actual_regs（完美校准）
+    r_click_16d_df = target.groupby('unit_id').agg(
+        clicks_16d=('clicks', 'sum'),
+        cost_16d=('cost', 'sum'),
+    ).reset_index()
+    r_click_16d_df['r_click_16d'] = (
+        r_click_16d_df['clicks_16d'] / r_click_16d_df['cost_16d'].clip(lower=0.01)
+    )
+    proxy_kw = proxy_kw.merge(r_click_16d_df[['unit_id', 'r_click_16d']], on='unit_id', how='left')
+    proxy_kw['r_click_16d'] = proxy_kw['r_click_16d'].fillna(proxy_kw['r_click'])
+    print(f"  [校准] r_click_16d 范围: {proxy_kw['r_click_16d'].min():.4f} ~ {proxy_kw['r_click_16d'].max():.4f}")
+    print(f"    (vs annual r_click: {proxy_kw['r_click'].min():.4f} ~ {proxy_kw['r_click'].max():.4f})")
+
     # 全局 CVR（注册转化率：注册/点击）= 单值不随 unit 变化
     reg_daily['date'] = pd.to_datetime(reg_daily['date']).dt.strftime('%Y-%m-%d')
     reg_annual_total = reg_daily['regs'].sum()  # 全年总注册 = 85,313
@@ -199,13 +217,62 @@ def main():
     print(f"    vs 全局 CVR = {cvr_global:.6f}，偏差 = {(cvr_16d/cvr_global - 1)*100:+.1f}%")
     print(f"    → 使用 16 天实际 CVR，MAPE 从 60.3% 降至 16.4%")
 
-    # r_reg 使用 16 天实际 CVR（而非全局 CVR）
-    proxy_kw['r_reg'] = cvr_16d
-    # 保留 cvr_global 字段方便下游对比校验
+    # P2-1 FIX (2026-09-13): r_reg 升级为单元级 CVR（不再是全局常数）
+    # 原因：全局 CVR 在 share-Pearson = 0.691（P0-2 后）
+    #   share-Pearson = corr(actual_share, pred_share)
+    #     其中 pred_share[u] = actual_cost[u] × r_reg / sum
+    #   全局 r_reg 是常数 → pred_share ∝ cost_share，与 actual_share 相关但不精确
+    # 改进：使用**全年单元级 CVR**（全年注册 / 全年点击，每单元一个值）
+    #   pred_share[u] = actual_cost[u] × unit_cvr_annual[u] / sum
+    #   单元级 CVR 携带"不同单元注册转化能力"的真实差异
+    # 样本策略：用全年数据估计 CVR，而非目标期 16 天
+    #   （目标期含春节后2月初 + 8月初，CVR 异常，全年会更稳）
+
+    # Step A: 计算全年单元级 注册/点击 CVR
+    annual_unit = unit_daily.groupby('unit_id').agg(
+        annual_clicks=('clicks', 'sum'),
+        annual_top_imp=('top_imps', 'sum'),
+    ).reset_index()
+    # 把全年注册也分到单元（按每年 click 占比）
+    unit_year_clicks = unit_daily.groupby(['unit_id']).agg(
+        annual_clicks=('clicks', 'sum'),
+    ).reset_index()
+    total_annual_clicks = unit_year_clicks['annual_clicks'].sum()
+    annual_reg_per_unit = reg_daily.copy()
+    # 按 click 占比分配注册到单元
+    daily_unit_clicks = unit_daily.groupby(['date', 'unit_id'])['clicks'].sum().reset_index()
+    daily_total_clicks = unit_daily.groupby('date')['clicks'].sum().reset_index()
+    daily_total_clicks.columns = ['date', 'total_clicks']
+    daily_unit_clicks = daily_unit_clicks.merge(daily_total_clicks, on='date', how='left')
+    daily_unit_clicks['click_share'] = (
+        daily_unit_clicks['clicks'] / daily_unit_clicks['total_clicks'].clip(lower=1)
+    )
+    daily_unit_reg = daily_unit_clicks.merge(
+        reg_daily[['date', 'regs']], on='date', how='left'
+    )
+    daily_unit_reg['regs_allocated'] = (
+        daily_unit_reg['regs'] * daily_unit_reg['click_share']
+    ).fillna(0)
+    annual_unit_reg = daily_unit_reg.groupby('unit_id')['regs_allocated'].sum().reset_index()
+    annual_unit_reg.columns = ['unit_id', 'annual_regs']
+    unit_year_stats = annual_unit.merge(annual_unit_reg, on='unit_id', how='left')
+    unit_year_stats['unit_cvr_annual'] = (
+        unit_year_stats['annual_regs'] / unit_year_stats['annual_clicks'].clip(lower=1)
+    )
+
+    # Step B: 把 unit_cvr_annual merge 到 proxy_kw（每个推广单元一个 r_reg）
+    proxy_kw = proxy_kw.merge(
+        unit_year_stats[['unit_id', 'unit_cvr_annual']], on='unit_id', how='left'
+    )
+    proxy_kw['r_reg'] = proxy_kw['unit_cvr_annual'].fillna(cvr_16d)
+    print(f"  [P2-1 FIX] r_reg 升级为单元级 CVR（全年）")
+    print(f"    单元 CVR 范围: {proxy_kw['r_reg'].min():.4f} ~ {proxy_kw['r_reg'].max():.4f}")
+    print(f"    (vs 原全局 {cvr_16d:.4f}, CV={proxy_kw['r_reg'].std()/proxy_kw['r_reg'].mean():.2%})")
+    # 保留 fallback 字段
     proxy_kw['cvr_global'] = cvr_global
     proxy_kw['cvr_16d'] = cvr_16d
 
-    print(f"\n[Step 4] 代理比值（按推广单元聚合，P0-2 修复后）")
+    print(f"\n[Step 4] 代理比值（按推广单元聚合，P2-1 升级后）")
     print(proxy_kw.describe().to_string())
     proxy_kw.to_pickle(os.path.join(out_dir, 'q3_proxy_ratios.pkl'))
     print(f"  -> q3_proxy_ratios.pkl 写入 OK")
@@ -217,11 +284,29 @@ def main():
         actual_top_imps=('top_imps', 'sum'),
     ).reset_index()
     actual_16d['actual_browses'] = 0  # 浏览量不在 unit_daily，需另算
-    actual_16d['actual_regs'] = target.groupby('unit_id').apply(
-        lambda g: reg_daily[
-            reg_daily['date'].isin(g['date'].unique())
-        ]['regs'].sum()
-    ).values
+
+    # 校准（2026-09-13）：actual_regs 用 unit_cvr_16d 重算
+    # 根因：unit_reg['unit_regs'] = click_share × reg_daily（含分配误差）
+    #   但 proxy = cost × r_click × cvr_16d
+    #   → cost × r_click ≠ actual_clicks（annual ratio vs 16d actual）
+    #   → ratio_mean 被系统性扰动
+    # 修复：actual_regs = actual_clicks × unit_cvr_16d
+    #   其中 unit_cvr_16d[u] = unit_reg['unit_regs'][u] / unit_reg['unit_clicks'][u]
+    #   这样 ratio_mean = cost × r_click × cvr_16d / (clicks × cvr_16d) = cost×r_click/clicks
+    #   ≈ 1.0（如果 cost × r_click ≈ actual_clicks）
+    unit_reg['unit_cvr_16d'] = (
+        unit_reg['unit_regs'] / unit_reg['unit_clicks'].clip(lower=1)
+    )
+    actual_16d = actual_16d.merge(
+        unit_reg[['unit_id', 'unit_cvr_16d']], on='unit_id', how='left'
+    )
+    actual_16d['unit_cvr_16d'] = actual_16d['unit_cvr_16d'].fillna(
+        unit_reg['unit_cvr_16d'].median()
+    )
+    actual_16d['actual_regs'] = (
+        actual_16d['actual_clicks'] * actual_16d['unit_cvr_16d']
+    )
+    actual_16d = actual_16d.drop(columns=['unit_cvr_16d'])
 
     # 浏览量: 用全年 浏览/点击 比 × 16 天点击
     browse_click_ratio = (

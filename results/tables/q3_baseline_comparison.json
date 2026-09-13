@@ -1,0 +1,16 @@
+{
+  "milp_clicks": 54200.20162956064,
+  "milp_regs": 3794.4193052454843,
+  "milp_hhi": 0.5061734331567764,
+  "equal_weight": {
+    "clicks": 31285.00312015652,
+    "click_diff_vs_milp_pct": -42.278806757992264,
+    "hhi": 0.0918367346938776
+  },
+  "historical": {
+    "clicks": 54200.20202556546,
+    "click_diff_vs_milp_pct": 7.306334808187926e-07,
+    "hhi": 0.5061734361818607
+  },
+  "interpretation": "MILP 相对等比例 baseline 的提升 = 点击量 %提升 + HHI 改善（预算更集中到高效单元）。MILP 相对历史同期的提升 = 在不超预算下重新分配，提有效单元占比。若 click_diff_vs_milp 为负，说明 baseline 实际更优 — 这正是 baseline 的作用。"
+}
