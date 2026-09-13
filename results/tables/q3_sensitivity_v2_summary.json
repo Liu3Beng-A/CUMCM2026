@@ -1,5 +1,7 @@
 {
-  "method": "代理比值扰动（r_click/r_browse，删 r_reg） + 目标函数权重 3 档",
+  "method": "代理比值扰动（r_click/r_browse） + 目标函数权重 3 档（v3 reg 公式修复）",
+  "reg_formula": "reg = click × CVR_16d (与论文 §5.3.1 一致)",
+  "cvr_16d": 0.07000747582414932,
   "n_ratio_scenarios": 10,
   "n_weight_scenarios": 3,
   "ratio_metrics": [
@@ -19,24 +21,25 @@
     "W=(0.3,0.7)"
   ],
   "improvement_vs_v1": "删 r_reg 扰动（代理失效无意义）+ 引入 click/browse 权重敏感性",
+  "fix_vs_v2": "v2 reg = cost × r_reg（错误，37,121） → v3 reg = click × cvr_16d（正确，3,794）",
   "weight_scenarios_summary": {
     "W=(1.0,0.0)": {
       "total_cost": 51164.93,
       "total_clicks": 54200.0,
       "total_browses": 158807.0,
-      "total_regs": 37121.0
+      "total_regs": 3794.0
     },
     "W=(0.7,0.3)": {
       "total_cost": 51164.93,
       "total_clicks": 54200.0,
       "total_browses": 158807.0,
-      "total_regs": 37121.0
+      "total_regs": 3794.0
     },
     "W=(0.3,0.7)": {
       "total_cost": 51164.93,
       "total_clicks": 54200.0,
       "total_browses": 158807.0,
-      "total_regs": 37121.0
+      "total_regs": 3794.0
     }
   }
 }
